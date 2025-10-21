@@ -15,7 +15,7 @@ async function bootstrap() {
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://localhost:4200',
-    'https://candidash.djoudj.dev',
+    'https://candidash.nedellec-julien.fr',
   ];
 
   // Utiliser ALLOWED_ORIGINS de Coolify si définie
