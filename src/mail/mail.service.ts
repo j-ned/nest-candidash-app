@@ -8,6 +8,7 @@ export interface ReminderEmailData {
   jobTitle: string;
   company: string;
   appliedAt?: Date;
+  jobUrl?: string;
 }
 
 export interface RegistrationEmailData {
@@ -493,10 +494,18 @@ export class MailService {
           <span style="font-weight: 600; color: #1f2937; min-width: 100px; margin-right: 12px;">Entreprise :</span>
           <span style="color: oklch(62.00% 0.087 171.94); font-weight: 600;">${data.company}</span>
         </div>
-        <div style="display: flex; margin-bottom: 0; align-items: center;">
+        <div style="display: flex; margin-bottom: ${data.jobUrl ? '12px' : '0'}; align-items: center;">
           <span style="font-weight: 600; color: #1f2937; min-width: 100px; margin-right: 12px;">Status :</span>
           <span style="color: oklch(62.00% 0.087 171.94); font-weight: 600;">${appliedDateText}</span>
         </div>
+        ${
+          data.jobUrl
+            ? `<div style="display: flex; margin-bottom: 0; align-items: center;">
+          <span style="font-weight: 600; color: #1f2937; min-width: 100px; margin-right: 12px;">Annonce :</span>
+          <a href="${data.jobUrl}" target="_blank" rel="noreferrer" style="color: oklch(62.00% 0.087 171.94); font-weight: 600; text-decoration: underline;">Voir l'offre d'emploi</a>
+        </div>`
+            : ''
+        }
       </div>
 
       <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 24px 0 16px;">
@@ -526,9 +535,9 @@ export class MailService {
       greeting:
         'Il est temps de relancer votre candidature ! Voici un résumé de votre postulation :',
       mainContent,
-      ctaButton: {
-        text: "💪 Restez proactif dans votre recherche d'emploi !",
-      },
+      ctaButton: data.jobUrl
+        ? { text: "Voir l'annonce", url: data.jobUrl }
+        : { text: "💪 Restez proactif dans votre recherche d'emploi !" },
       footerMessage:
         'Cet email a été envoyé automatiquement par votre système de suivi des candidatures.',
       type: 'primary',
@@ -750,7 +759,7 @@ Il est temps de relancer votre candidature pour le poste :
 
 - Poste : ${data.jobTitle}
 - Entreprise : ${data.company}
-- Status : ${appliedDateText}
+- Status : ${appliedDateText}${data.jobUrl ? `\n- Annonce : ${data.jobUrl}` : ''}
 
 Nous vous recommandons de :
 - Envoyer un email de suivi poli au recruteur

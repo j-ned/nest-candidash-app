@@ -24,7 +24,7 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants invalides');
     }
 
-    const isPasswordValid = this.usersService.validatePassword(
+    const isPasswordValid = await this.usersService.validatePassword(
       user,
       loginCredentials.password,
     );
@@ -55,6 +55,41 @@ export class AuthService {
     // Token expires in 24 hours (24 * 60 * 60 = 86400 seconds)
     const expires_in = 86400;
 
+    const userSafe = AuthMapper.mapUserToSafe(user as User);
+
+    return {
+      access_token,
+      refresh_token,
+      expires_in,
+      token_type: 'Bearer',
+      user: userSafe,
+    };
+  }
+
+  async loginAfterRegistration(email: string): Promise<AuthResult> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Utilisateur introuvable');
+    }
+
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    const access_token = await this.jwtService.signAsync(payload);
+
+    const refreshPayload = { sub: user.id, type: 'refresh' };
+    const refresh_token = await this.jwtService.signAsync(refreshPayload, {
+      expiresIn: '7d',
+    });
+
+    const refreshTokenExpires = new Date();
+    refreshTokenExpires.setDate(refreshTokenExpires.getDate() + 7);
+
+    await this.usersService.updateRefreshToken(
+      user.id,
+      refresh_token,
+      refreshTokenExpires,
+    );
+
+    const expires_in = 86400;
     const userSafe = AuthMapper.mapUserToSafe(user as User);
 
     return {

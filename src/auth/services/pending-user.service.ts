@@ -1,7 +1,7 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from '../../users/users.service';
-import * as crypto from 'crypto';
+import * as bcrypt from 'bcryptjs';
 
 export interface PendingUserData {
   email: string;
@@ -21,6 +21,8 @@ export class PendingUserService {
       throw new ConflictException('Un utilisateur avec cet email existe déjà');
     }
 
+    const hashedPassword = await bcrypt.hash(userData.password, 12);
+
     const existingPendingUser = await this.prisma.pendingUser.findUnique({
       where: { email: userData.email },
     });
@@ -29,8 +31,7 @@ export class PendingUserService {
       await this.prisma.pendingUser.update({
         where: { email: userData.email },
         data: {
-          password: this.hashPassword(userData.password),
-          originalPassword: userData.password,
+          password: hashedPassword,
           username: userData.username,
           verified: false,
         },
@@ -39,8 +40,7 @@ export class PendingUserService {
       await this.prisma.pendingUser.create({
         data: {
           email: userData.email,
-          password: this.hashPassword(userData.password),
-          originalPassword: userData.password,
+          password: hashedPassword,
           username: userData.username,
           verified: false,
         },
@@ -48,7 +48,11 @@ export class PendingUserService {
     }
   }
 
-  async validatePendingUser(email: string): Promise<{ password: string }> {
+  /**
+   * Validates the pending user and creates the real User with the pre-hashed password.
+   * The password is already hashed in PendingUser, so we insert it directly.
+   */
+  async validatePendingUser(email: string): Promise<void> {
     const pendingUser = await this.prisma.pendingUser.findUnique({
       where: { email },
     });
@@ -57,19 +61,19 @@ export class PendingUserService {
       throw new Error('Utilisateur en attente introuvable');
     }
 
-    await this.usersService.create({
-      email: pendingUser.email,
-      password: pendingUser.originalPassword,
-      username: pendingUser.username || undefined,
+    // Create user directly with the already-hashed password
+    await this.prisma.user.create({
+      data: {
+        email: pendingUser.email,
+        username: pendingUser.username,
+        password: pendingUser.password, // Already bcrypt-hashed
+        role: 'USER',
+      },
     });
-
-    const originalPassword = pendingUser.originalPassword;
 
     await this.prisma.pendingUser.delete({
       where: { email },
     });
-
-    return { password: originalPassword };
   }
 
   async cleanupExpiredPendingUsers(): Promise<void> {
@@ -91,9 +95,5 @@ export class PendingUserService {
     });
 
     return !!pendingUser;
-  }
-
-  private hashPassword(password: string): string {
-    return crypto.createHash('sha256').update(password).digest('hex');
   }
 }

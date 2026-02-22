@@ -2,10 +2,18 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import compression from 'compression';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Helmet — headers de sécurité (X-Frame-Options, HSTS, etc.)
+  app.use(helmet());
+
+  // Compression gzip/deflate des réponses
+  app.use(compression());
 
   // Configuration du cookie parser pour lire les cookies HttpOnly
   app.use(cookieParser());
@@ -52,32 +60,34 @@ async function bootstrap() {
   // Configuration du préfixe global des routes
   app.setGlobalPrefix('api/v1');
 
-  // Configuration de Swagger
-  const config = new DocumentBuilder()
-    .setTitle('Candidash API')
-    .setDescription(
-      "API REST pour l'application Candidash de gestion des candidats",
-    )
-    .setVersion('1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
-      'JWT-auth',
-    )
-    .build();
+  // Swagger uniquement en développement
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('Candidash API')
+      .setDescription(
+        "API REST pour l'application Candidash de gestion des candidats",
+      )
+      .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'JWT',
+          description: 'Enter JWT token',
+          in: 'header',
+        },
+        'JWT-auth',
+      )
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  });
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+    });
+  }
 
   // Gestion d'erreur globale pour éviter les crashes
   process.on('uncaughtException', (error) => {

@@ -103,13 +103,23 @@ export class UsersController {
       password: createUserDto.password,
     });
 
-    // Définir le refresh token dans un cookie HttpOnly
-    response.cookie('refresh_token', loginResult.refresh_token, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+      sameSite: 'strict' as const,
       path: '/',
+    };
+
+    // Définir le refresh token dans un cookie HttpOnly
+    response.cookie('refresh_token', loginResult.refresh_token, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+    });
+
+    // Définir l'access token dans un cookie HttpOnly
+    response.cookie('access_token', loginResult.access_token, {
+      ...cookieOptions,
+      maxAge: 24 * 60 * 60 * 1000, // 24 heures
     });
 
     // Retourner l'access token et les données utilisateur

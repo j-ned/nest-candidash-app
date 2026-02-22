@@ -44,12 +44,15 @@ model JobTrack {
   contractType ContractType?
 
   notes       String?
+  cvFileName  String?
+  lmFileName  String?
 
   reminders Reminder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId])
   @@map("Annonces")
 }
 
@@ -83,6 +86,8 @@ model Reminder {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([jobTrackId])
+  @@index([isActive, nextReminderAt])
   @@map("Relance")
 }
 
@@ -114,14 +119,13 @@ model VerificationCode {
 }
 
 model PendingUser {
-  id               String @id @default(uuid())
-  email            String @unique
-  username         String?
-  password         String // Mot de passe hashé
-  originalPassword String // Mot de passe original pour la reconnexion
-  verified         Boolean @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id       String  @id @default(uuid())
+  email    String  @unique
+  username String?
+  password String // Mot de passe hashé (bcrypt)
+  verified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("UtilisateursEnAttente")
 }

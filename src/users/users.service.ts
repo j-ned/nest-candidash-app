@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcryptjs';
 import { User, UserCreateData, UserUpdateData } from './interfaces';
 import { UserMapper } from './mappers';
 
@@ -21,7 +22,7 @@ export class UsersService {
       throw new ConflictException('Un utilisateur avec cet email existe déjà');
     }
 
-    const hashedPassword = this.hashPassword(createUserData.password);
+    const hashedPassword = await this.hashPassword(createUserData.password);
 
     const prismaUser = await this.prisma.user.create({
       data: {
@@ -85,7 +86,7 @@ export class UsersService {
       updateData.username = updateUserData.username;
     }
     if (updateUserData.password) {
-      updateData.password = this.hashPassword(updateUserData.password);
+      updateData.password = await this.hashPassword(updateUserData.password);
     }
     if (updateUserData.role) {
       updateData.role = updateUserData.role;
@@ -112,9 +113,29 @@ export class UsersService {
     return UserMapper.mapPrismaUserToUser(prismaUser);
   }
 
-  validatePassword(user: User, password: string): boolean {
-    const hashedPassword = this.hashPassword(password);
-    return hashedPassword === (user.password ?? '');
+  async validatePassword(user: User, password: string): Promise<boolean> {
+    if (!user.password) return false;
+    // Support legacy SHA256 hashes (migration) + bcrypt
+    if (
+      !user.password.startsWith('$2a$') &&
+      !user.password.startsWith('$2b$')
+    ) {
+      const sha256Hash = crypto
+        .createHash('sha256')
+        .update(password)
+        .digest('hex');
+      if (sha256Hash === user.password) {
+        // Migrate to bcrypt on successful login
+        const bcryptHash = await bcrypt.hash(password, 12);
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { password: bcryptHash },
+        });
+        return true;
+      }
+      return false;
+    }
+    return bcrypt.compare(password, user.password);
   }
 
   generatePasswordResetToken(): string {
@@ -159,7 +180,7 @@ export class UsersService {
       return false;
     }
 
-    const hashedPassword = this.hashPassword(newPassword);
+    const hashedPassword = await this.hashPassword(newPassword);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -183,11 +204,11 @@ export class UsersService {
       return false;
     }
 
-    if (!this.validatePassword(user, currentPassword)) {
+    if (!(await this.validatePassword(user, currentPassword))) {
       return false;
     }
 
-    const hashedPassword = this.hashPassword(newPassword);
+    const hashedPassword = await this.hashPassword(newPassword);
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -204,7 +225,7 @@ export class UsersService {
     refreshToken: string,
     expiresAt: Date,
   ): Promise<void> {
-    const hashedRefreshToken = this.hashPassword(refreshToken);
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -232,8 +253,7 @@ export class UsersService {
       return false;
     }
 
-    const hashedRefreshToken = this.hashPassword(refreshToken);
-    return hashedRefreshToken === user.refreshToken;
+    return bcrypt.compare(refreshToken, user.refreshToken);
   }
 
   async clearRefreshToken(userId: string): Promise<void> {
@@ -246,7 +266,7 @@ export class UsersService {
     });
   }
 
-  private hashPassword(password: string): string {
-    return crypto.createHash('sha256').update(password).digest('hex');
+  async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 12);
   }
 }

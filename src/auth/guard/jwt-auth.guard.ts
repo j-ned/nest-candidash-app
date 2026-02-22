@@ -9,6 +9,7 @@ import { JwtPayload } from '../interfaces';
 
 interface RequestWithUser extends Request {
   user?: JwtPayload;
+  cookies?: Record<string, string>;
 }
 
 @Injectable()
@@ -18,7 +19,9 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
 
-    const token = this.extractTokenFromHeader(request);
+    const token =
+      this.extractTokenFromCookie(request) ??
+      this.extractTokenFromHeader(request);
     if (!token) {
       throw new UnauthorizedException("Jeton d'authentification manquant");
     }
@@ -31,6 +34,11 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException("Jeton d'authentification invalide");
     }
     return true;
+  }
+
+  private extractTokenFromCookie(request: RequestWithUser): string | undefined {
+    const token = request.cookies?.['access_token'];
+    return token && token.length > 0 ? token : undefined;
   }
 
   private extractTokenFromHeader(request: RequestWithUser): string | undefined {

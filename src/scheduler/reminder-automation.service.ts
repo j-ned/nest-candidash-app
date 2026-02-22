@@ -31,10 +31,13 @@ export class ReminderAutomationService {
       if (dueReminders.length === 0) {
         return;
       }
-      for (const reminder of dueReminders) {
-        await this.processReminder(reminder);
-      }
-      this.logger.log('Vérification des rappels terminée avec succès');
+      const results = await Promise.allSettled(
+        dueReminders.map((reminder) => this.processReminder(reminder)),
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      this.logger.log(
+        `Vérification terminée: ${results.length - failed} succès, ${failed} échecs`,
+      );
     } catch (error) {
       this.logger.error(
         'Erreur lors de la vérification des rappels:',
@@ -59,9 +62,11 @@ export class ReminderAutomationService {
       const dueReminders = await this.findDueReminders();
       processed = dueReminders.length;
       this.logger.log(`${processed} rappel(s) à traiter`);
-      for (const reminder of dueReminders) {
-        const result = await this.processReminder(reminder);
-        if (result) {
+      const results = await Promise.allSettled(
+        dueReminders.map((reminder) => this.processReminder(reminder)),
+      );
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
           successful++;
         } else {
           failed++;
@@ -128,6 +133,7 @@ export class ReminderAutomationService {
     jobtrack: {
       title: string;
       company: string | null;
+      jobUrl: string | null;
       appliedAt: Date | null;
       user: { email: string; username: string | null };
     };
@@ -139,6 +145,7 @@ export class ReminderAutomationService {
       jobTitle: reminder.jobtrack.title,
       company: reminder.jobtrack.company ?? '',
       appliedAt: reminder.jobtrack.appliedAt ?? undefined,
+      jobUrl: reminder.jobtrack.jobUrl ?? undefined,
     };
   }
 

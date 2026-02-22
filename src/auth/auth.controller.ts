@@ -9,6 +9,7 @@ import {
   Res,
   UnauthorizedException,
   BadRequestException,
+  HttpException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Response as ExpressResponse } from 'express';
@@ -52,13 +53,23 @@ export class AuthController {
   ): Promise<AuthResponseDto> {
     const authResult = await this.authService.login(loginDto);
 
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict' as const,
+      path: '/',
+    };
+
     // Définir le refresh token dans un cookie HttpOnly
     response.cookie('refresh_token', authResult.refresh_token, {
-      httpOnly: true, // Inaccessible au JavaScript
-      secure: process.env.NODE_ENV === 'production', // HTTPS en prod
-      sameSite: 'strict', // Protection CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours en milliseconds
-      path: '/',
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+    });
+
+    // Définir l'access token dans un cookie HttpOnly
+    response.cookie('access_token', authResult.access_token, {
+      ...cookieOptions,
+      maxAge: 24 * 60 * 60 * 1000, // 24 heures
     });
 
     return AuthMapper.mapAuthResultToLoginResponse(authResult);
@@ -84,12 +95,21 @@ export class AuthController {
 
     const authResult = await this.authService.refreshToken(refreshToken);
 
-    response.cookie('refresh_token', authResult.refresh_token, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: 'strict' as const,
       path: '/',
+    };
+
+    response.cookie('refresh_token', authResult.refresh_token, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    response.cookie('access_token', authResult.access_token, {
+      ...cookieOptions,
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
     return AuthMapper.mapAuthResultToRefreshResponse(authResult);
@@ -106,12 +126,15 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) response: ExpressResponse,
   ): Promise<{ message: string }> {
-    response.clearCookie('refresh_token', {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'strict' as const,
       path: '/',
-    });
+    };
+
+    response.clearCookie('refresh_token', cookieOptions);
+    response.clearCookie('access_token', cookieOptions);
 
     return this.authService.logout(req.user.sub);
   }
@@ -151,9 +174,10 @@ export class AuthController {
       }
       hasEmailSendError = true;
     } catch (error) {
-      if (error instanceof BadRequestException) {
+      if (error instanceof HttpException) {
         throw error;
       }
+      console.error('Erreur register:', error);
       throw new BadRequestException("Erreur lors du processus d'inscription");
     }
     if (hasEmailSendError) {
@@ -192,21 +216,28 @@ export class AuthController {
       );
     }
 
-    const { password } = await this.pendingUserService.validatePendingUser(
+    await this.pendingUserService.validatePendingUser(verifyDto.email);
+
+    // Generate tokens directly for the newly created user
+    const authResult = await this.authService.loginAfterRegistration(
       verifyDto.email,
     );
 
-    const authResult = await this.authService.login({
-      email: verifyDto.email,
-      password: password,
-    });
-
-    response.cookie('refresh_token', authResult.refresh_token, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+      sameSite: 'strict' as const,
       path: '/',
+    };
+
+    response.cookie('refresh_token', authResult.refresh_token, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+    });
+
+    response.cookie('access_token', authResult.access_token, {
+      ...cookieOptions,
+      maxAge: 24 * 60 * 60 * 1000, // 24 heures
     });
 
     return AuthMapper.mapAuthResultToLoginResponse(authResult);

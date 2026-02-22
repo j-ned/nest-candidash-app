@@ -55,6 +55,7 @@ export class JobTrackService {
   async findAllByUser(userId: string): Promise<JobTrack[]> {
     const prismaJobTracks = await this.prisma.jobTrack.findMany({
       where: { userId },
+      include: { reminders: true },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -69,6 +70,7 @@ export class JobTrackService {
   async findOne(id: string, userId: string): Promise<JobTrack | null> {
     const prismaJobTrack = await this.prisma.jobTrack.findUnique({
       where: { id },
+      include: { reminders: true },
     });
 
     if (!prismaJobTrack) {
@@ -356,6 +358,7 @@ export class JobTrackService {
   async findByStatus(userId: string, status: JobStatus): Promise<JobTrack[]> {
     const prismaJobTracks = await this.prisma.jobTrack.findMany({
       where: { userId, status },
+      include: { reminders: true },
       orderBy: { createdAt: 'desc' },
     });
 
