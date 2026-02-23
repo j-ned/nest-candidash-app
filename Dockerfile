@@ -30,6 +30,13 @@ COPY --chown=node:node package.json pnpm-lock.yaml ./
 # Installer uniquement les dépendances de prod
 RUN pnpm install --prod --frozen-lockfile
 
+# Copier le schema Prisma, les migrations et le CLI (pour prisma migrate deploy)
+COPY --chown=node:node --from=builder /app/prisma ./prisma
+COPY --chown=node:node --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --chown=node:node --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --chown=node:node --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+COPY --chown=node:node --from=builder /app/node_modules/dotenv ./node_modules/dotenv
+
 # Copier le build depuis le stage précédent (inclut le client Prisma compilé dans dist/generated/)
 COPY --chown=node:node --from=builder /app/dist ./dist
 
