@@ -25,16 +25,13 @@ WORKDIR /app
 RUN corepack enable
 
 # Copier les fichiers de dépendances
-COPY package.json pnpm-lock.yaml ./
+COPY --chown=node:node package.json pnpm-lock.yaml ./
 
 # Installer uniquement les dépendances de prod
 RUN pnpm install --prod --frozen-lockfile
 
 # Copier le build depuis le stage précédent (inclut le client Prisma compilé dans dist/generated/)
-COPY --from=builder /app/dist ./dist
-
-# Assurer que l’utilisateur final a les droits nécessaires
-RUN chown -R node:node /app
+COPY --chown=node:node --from=builder /app/dist ./dist
 
 USER node
 
