@@ -23,6 +23,7 @@ import {
 import { AuthResponseDto, RefreshResponseDto } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
 import type { RequestWithCookies, AuthenticatedRequest } from './interfaces';
+import type { TwoFactorPendingResponse } from './interfaces';
 import { AuthMapper } from './mappers';
 import { VerificationService } from './services/verification.service';
 import { PendingUserService } from './services/pending-user.service';
@@ -50,8 +51,12 @@ export class AuthController {
   async login(
     @Body(ValidationPipe) loginDto: LoginDto,
     @Res({ passthrough: true }) response: ExpressResponse,
-  ): Promise<AuthResponseDto> {
-    const authResult = await this.authService.login(loginDto);
+  ): Promise<AuthResponseDto | TwoFactorPendingResponse> {
+    const result = await this.authService.login(loginDto);
+
+    if ('requires2FA' in result) {
+      return result;
+    }
 
     const cookieOptions = {
       httpOnly: true,
@@ -60,19 +65,17 @@ export class AuthController {
       path: '/',
     };
 
-    // Définir le refresh token dans un cookie HttpOnly
-    response.cookie('refresh_token', authResult.refresh_token, {
+    response.cookie('refresh_token', result.refresh_token, {
       ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // Définir l'access token dans un cookie HttpOnly
-    response.cookie('access_token', authResult.access_token, {
+    response.cookie('access_token', result.access_token, {
       ...cookieOptions,
-      maxAge: 24 * 60 * 60 * 1000, // 24 heures
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
-    return AuthMapper.mapAuthResultToLoginResponse(authResult);
+    return AuthMapper.mapAuthResultToLoginResponse(result);
   }
 
   @Post('refresh')

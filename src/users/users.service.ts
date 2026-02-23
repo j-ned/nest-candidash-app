@@ -266,6 +266,56 @@ export class UsersService {
     });
   }
 
+  async updateTotpSecret(
+    userId: string,
+    encryptedSecret: string,
+  ): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totpSecret: encryptedSecret },
+    });
+  }
+
+  async enableTotp(
+    userId: string,
+    hashedRecoveryCodes: string[],
+  ): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        totpEnabled: true,
+        totpRecoveryCodes: hashedRecoveryCodes,
+      },
+    });
+  }
+
+  async disableTotp(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        totpSecret: null,
+        totpEnabled: false,
+        totpRecoveryCodes: [],
+      },
+    });
+  }
+
+  async removeRecoveryCode(userId: string, codeIndex: number): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { totpRecoveryCodes: true },
+    });
+    if (!user) return;
+
+    const codes = [...user.totpRecoveryCodes];
+    codes.splice(codeIndex, 1);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totpRecoveryCodes: codes },
+    });
+  }
+
   async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 12);
   }

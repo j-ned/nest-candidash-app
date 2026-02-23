@@ -23,6 +23,9 @@ export class UserMapper {
       refreshTokenExpires: prismaUser.refreshTokenExpires ?? undefined,
       resetPasswordToken: prismaUser.resetPasswordToken ?? undefined,
       resetPasswordExpires: prismaUser.resetPasswordExpires ?? undefined,
+      totpSecret: prismaUser.totpSecret ?? undefined,
+      totpEnabled: prismaUser.totpEnabled,
+      totpRecoveryCodes: prismaUser.totpRecoveryCodes,
       createdAt: prismaUser.createdAt,
       updatedAt: prismaUser.updatedAt,
     };
@@ -37,6 +40,7 @@ export class UserMapper {
       email: user.email,
       username: user.username,
       role: user.role,
+      totpEnabled: user.totpEnabled,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

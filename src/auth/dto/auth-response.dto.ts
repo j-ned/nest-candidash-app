@@ -39,6 +39,12 @@ export class UserResponseDto {
     example: '2024-01-01T00:00:00.000Z',
   })
   updatedAt: Date;
+
+  @ApiProperty({
+    description: "Indique si l'authentification 2FA est activée",
+    example: false,
+  })
+  totpEnabled: boolean;
 }
 
 export class AuthResponseDto {

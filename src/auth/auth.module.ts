@@ -3,15 +3,19 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { TotpController } from './totp.controller';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
 import { VerificationService } from './services/verification.service';
 import { PendingUserService } from './services/pending-user.service';
 import { EmailService } from './services/email.service';
+import { TotpService } from './services/totp.service';
+import { TotpCryptoService } from './services/totp-crypto.service';
 import { UsersModule } from '../users/users.module';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
+    ConfigModule,
     forwardRef(() => UsersModule),
     PrismaModule,
     JwtModule.registerAsync({
@@ -24,13 +28,15 @@ import { PrismaModule } from '../prisma/prisma.module';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, TotpController],
   providers: [
     AuthService,
     JwtAuthGuard,
     VerificationService,
     PendingUserService,
     EmailService,
+    TotpService,
+    TotpCryptoService,
   ],
   exports: [
     AuthService,

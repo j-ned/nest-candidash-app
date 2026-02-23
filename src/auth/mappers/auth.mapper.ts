@@ -4,6 +4,7 @@ import {
   AuthResult,
   LoginResponse,
   RefreshResponse,
+  TwoFactorPendingResponse,
 } from '../interfaces';
 
 export class AuthMapper {
@@ -16,8 +17,22 @@ export class AuthMapper {
       email: user.email,
       username: user.username,
       role: user.role,
+      totpEnabled: user.totpEnabled,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+    };
+  }
+
+  /**
+   * Crée une réponse 2FA en attente
+   */
+  static mapToTwoFactorPendingResponse(
+    tempToken: string,
+  ): TwoFactorPendingResponse {
+    return {
+      requires2FA: true,
+      tempToken,
+      message: 'Vérification 2FA requise',
     };
   }
 

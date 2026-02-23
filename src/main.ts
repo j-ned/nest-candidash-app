@@ -18,21 +18,21 @@ async function bootstrap() {
   // Configuration du cookie parser pour lire les cookies HttpOnly
   app.use(cookieParser());
 
-  // Configuration CORS
-  let allowedOrigins = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:4200',
-    'https://candidash.nedellec-julien.fr',
-  ];
+  // Configuration CORS — toutes les origines depuis .env
+  const defaultOrigins =
+    process.env.NODE_ENV === 'production'
+      ? []
+      : [
+          'http://localhost:3000',
+          'http://127.0.0.1:3000',
+          'http://localhost:4200',
+        ];
 
-  // Utiliser ALLOWED_ORIGINS de Coolify si définie
-  if (process.env.ALLOWED_ORIGINS) {
-    const envOrigins = process.env.ALLOWED_ORIGINS.split(',').map((origin) =>
-      origin.trim(),
-    );
-    allowedOrigins = [...allowedOrigins, ...envOrigins];
-  }
+  const envOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+    : [];
+
+  const allowedOrigins = [...defaultOrigins, ...envOrigins];
 
   app.enableCors({
     origin: allowedOrigins,

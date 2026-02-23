@@ -103,6 +103,22 @@ export class UsersController {
       password: createUserDto.password,
     });
 
+    // Un utilisateur fraîchement créé par admin n'a pas de 2FA, on peut faire un narrowing
+    if ('requires2FA' in loginResult) {
+      return {
+        access_token: '',
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          role: user.role,
+          totpEnabled: true,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+      };
+    }
+
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -110,19 +126,16 @@ export class UsersController {
       path: '/',
     };
 
-    // Définir le refresh token dans un cookie HttpOnly
     response.cookie('refresh_token', loginResult.refresh_token, {
       ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // Définir l'access token dans un cookie HttpOnly
     response.cookie('access_token', loginResult.access_token, {
       ...cookieOptions,
-      maxAge: 24 * 60 * 60 * 1000, // 24 heures
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
-    // Retourner l'access token et les données utilisateur
     return {
       access_token: loginResult.access_token,
       user: loginResult.user,

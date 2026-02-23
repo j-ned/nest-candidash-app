@@ -10,6 +10,9 @@ export interface User {
   refreshTokenExpires?: Date;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  totpSecret?: string;
+  totpEnabled: boolean;
+  totpRecoveryCodes: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +22,7 @@ export interface UserSafe {
   email: string;
   username?: string;
   role: Role;
+  totpEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,4 +60,17 @@ export interface JwtRefreshPayload {
   type: 'refresh';
   iat?: number;
   exp?: number;
+}
+
+export interface JwtTwoFactorPayload {
+  sub: string;
+  type: '2fa-pending';
+  iat?: number;
+  exp?: number;
+}
+
+export interface TwoFactorPendingResponse {
+  requires2FA: true;
+  tempToken: string;
+  message: string;
 }

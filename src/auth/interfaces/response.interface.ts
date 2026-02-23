@@ -7,6 +7,7 @@ export interface LoginResponse {
     email: string;
     username?: string;
     role: Role;
+    totpEnabled: boolean;
     createdAt: Date;
     updatedAt: Date;
   };
