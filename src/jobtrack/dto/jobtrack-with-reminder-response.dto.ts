@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ContractType, JobStatus } from '../../../generated/prisma';
+import { ContractType, JobStatus } from '../../generated/prisma/enums.js';
 
 /**
  * DTO de réponse combinée : Annonce (JobTrack) + Rappel (Reminder).
@@ -47,6 +47,7 @@ export class JobTrackWithReminderResponseDto {
   @ApiProperty({
     description: 'Statut actuel de la candidature',
     enum: JobStatus,
+    type: String,
     example: JobStatus.APPLIED,
   })
   status!: JobStatus;
@@ -54,6 +55,7 @@ export class JobTrackWithReminderResponseDto {
   @ApiProperty({
     description: 'Type de contrat proposé',
     enum: ContractType,
+    type: String,
     example: ContractType.CDI,
     nullable: true,
   })

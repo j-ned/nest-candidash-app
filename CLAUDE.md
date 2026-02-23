@@ -27,7 +27,7 @@ Run a single test: `pnpm jest -- --testPathPattern=<pattern>`
 
 ## Architecture
 
-**NestJS 11 + TypeScript 5.7 + Prisma 6 + PostgreSQL**
+**NestJS 11 + TypeScript 5.7 + Prisma 7 + PostgreSQL + SWC**
 
 ### Module Structure
 
@@ -48,7 +48,7 @@ Run a single test: `pnpm jest -- --testPathPattern=<pattern>`
 
 ### Database
 
-Prisma schema at `prisma/schema.prisma`. Prisma client output: `generated/prisma/`. Table names are French (e.g., `Utilisateurs`, `Annonces`, `Relance`, `CodesVerification`, `UtilisateursEnAttente`).
+Prisma schema at `prisma/schema.prisma`, config at `prisma.config.ts`. Prisma client output: `src/generated/prisma/`. Uses PrismaPg adapter with `@prisma/adapter-pg`. Builder is SWC (handles Prisma 7 ESM client). Table names are French (e.g., `Utilisateurs`, `Annonces`, `Relance`, `CodesVerification`, `UtilisateursEnAttente`).
 
 Key models: `User` → `JobTrack[]` → `Reminder[]`, `UserTracking`, `VerificationCode`, `PendingUser`. All child relations use `onDelete: Cascade`.
 
@@ -60,7 +60,7 @@ Key models: `User` → `JobTrack[]` → `Reminder[]`, `UserTracking`, `Verificat
 
 ## Environment Variables
 
-Required: `DATABASE_URL`, `JWT_SECRET`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM_NAME`, `MAIL_FROM_ADDRESS`
+Required: `DATABASE_URL`, `JWT_SECRET`, `TOTP_ENCRYPTION_KEY`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_FROM_NAME`, `MAIL_FROM_ADDRESS`
 
 Optional: `PORT` (default 3000), `NODE_ENV`, `ALLOWED_ORIGINS` (comma-separated)
 

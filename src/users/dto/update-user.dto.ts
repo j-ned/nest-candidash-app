@@ -6,7 +6,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-import { Role } from '../../../generated/prisma';
+import { Role } from '../../generated/prisma/enums.js';
 
 export class UpdateUserDto {
   @ApiProperty({
@@ -54,6 +54,7 @@ export class UpdateUserDto {
   @ApiProperty({
     description: 'Nouveau rôle',
     enum: Role,
+    type: String,
     example: Role.ADMIN,
     required: false,
   })

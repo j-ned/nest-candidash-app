@@ -6,7 +6,7 @@ import {
   IsEnum,
   MinLength,
 } from 'class-validator';
-import { JobStatus, ContractType } from '../../../generated/prisma';
+import { JobStatus, ContractType } from '../../generated/prisma/enums.js';
 
 export class UpdateJobTrackDto {
   @ApiProperty({
@@ -63,6 +63,7 @@ export class UpdateJobTrackDto {
   @ApiProperty({
     description: 'Statut actuel de la candidature',
     enum: JobStatus,
+    type: String,
     example: JobStatus.PENDING,
     required: false,
   })
@@ -75,6 +76,7 @@ export class UpdateJobTrackDto {
   @ApiProperty({
     description: 'Type de contrat proposé pour le poste',
     enum: ContractType,
+    type: String,
     example: ContractType.CDI,
     required: false,
   })

@@ -1,4 +1,4 @@
-import { User as PrismaUser } from '../../../generated/prisma';
+import { User as PrismaUser } from '../../generated/prisma/client.js';
 import {
   User,
   UserSafe,

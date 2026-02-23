@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Role } from '../../../generated/prisma';
+import { Role } from '../../generated/prisma/enums.js';
 
 export class UserResponseDto {
   @ApiProperty({
@@ -24,6 +24,7 @@ export class UserResponseDto {
   @ApiProperty({
     description: "Rôle de l'utilisateur",
     enum: Role,
+    type: String,
     example: Role.USER,
   })
   role: Role;

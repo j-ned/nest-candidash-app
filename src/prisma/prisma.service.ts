@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { PrismaClient } from '../../generated/prisma';
+import { PrismaClient } from '../generated/prisma/client.js';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
@@ -10,21 +11,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       throw new Error('DATABASE_URL environment variable is required');
     }
 
-    super({
-      datasources: {
-        db: {
-          url: databaseUrl,
-        },
-      },
-    });
+    const adapter = new PrismaPg({ connectionString: databaseUrl });
+    super({ adapter });
   }
 
   async onModuleInit() {
-    // eslint-disable-next-line no-useless-catch
-    try {
-      await this.$connect();
-    } catch (error) {
-      throw error;
-    }
+    await this.$connect();
   }
 }

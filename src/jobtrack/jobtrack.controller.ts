@@ -22,7 +22,7 @@ import {
 import { JobTrackService } from './jobtrack.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { JobTrackResponseDto } from './dto/jobtrack-response.dto';
-import { JobStatus } from '../../generated/prisma';
+import { JobStatus } from '../generated/prisma/enums.js';
 import { CreateJobTrackWithReminderDto } from './dto/create-jobtrack-with-reminder.dto';
 import { JobTrackWithReminderResponseDto } from './dto/jobtrack-with-reminder-response.dto';
 import { UpdateJobTrackWithReminderDto } from './dto/update-jobtrack-with-reminder.dto';
@@ -80,6 +80,7 @@ export class JobTrackController {
     name: 'status',
     description: 'Filtre par statut d’annonce',
     enum: JobStatus,
+    type: String,
   })
   @ApiResponse({
     status: 200,

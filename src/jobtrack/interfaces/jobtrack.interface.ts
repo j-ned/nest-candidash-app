@@ -1,4 +1,4 @@
-import { JobStatus, ContractType } from '../../../generated/prisma';
+import { JobStatus, ContractType } from '../../generated/prisma/enums.js';
 import { Reminder } from './reminder.interface';
 
 export interface JobTrack {

@@ -4,10 +4,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { JobStatus, ContractType } from '../../generated/prisma';
+import { JobStatus, ContractType } from '../generated/prisma/enums.js';
 import { CreateJobTrackDto } from './dto/create-jobtrack.dto';
 import { UpdateJobTrackDto } from './dto/update-jobtrack.dto';
-import type { Prisma } from '../../generated/prisma';
+import type { Prisma } from '../generated/prisma/client.js';
 import {
   JobTrack,
   JobTrackCreateData,

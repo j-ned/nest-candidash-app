@@ -1,7 +1,7 @@
 import {
   JobTrack as PrismaJobTrack,
   Reminder as PrismaReminder,
-} from '../../../generated/prisma';
+} from '../../generated/prisma/client.js';
 import { JobTrack } from '../interfaces';
 import { ReminderMapper } from './reminder.mapper';
 

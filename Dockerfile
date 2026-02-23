@@ -30,14 +30,7 @@ COPY package.json pnpm-lock.yaml ./
 # Installer uniquement les dépendances de prod
 RUN pnpm install --prod --frozen-lockfile
 
-# Copier le schéma Prisma et corriger les permissions
-COPY prisma ./prisma
-RUN mkdir -p /app/generated/prisma && chown -R node:node /app/generated
-
-# Régénérer Prisma client en tant que root (avant de passer à node)
-RUN npx prisma generate
-
-# Copier le build depuis le stage précédent
+# Copier le build depuis le stage précédent (inclut le client Prisma compilé dans dist/generated/)
 COPY --from=builder /app/dist ./dist
 
 # Assurer que l’utilisateur final a les droits nécessaires

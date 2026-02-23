@@ -1,4 +1,4 @@
-import { Role } from '../../../generated/prisma';
+import { Role } from '../../generated/prisma/enums.js';
 
 export interface LoginResponse {
   access_token: string;
