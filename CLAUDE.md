@@ -55,7 +55,7 @@ Key models: `User` → `JobTrack[]` → `Reminder[]`, `UserTracking`, `Verificat
 ### Enums
 
 - `Role`: ADMIN, USER
-- `JobStatus`: APPLIED, PENDING, INTERVIEW, REJECTED, ACCEPTED
+- `JobStatus`: APPLIED, INTERVIEW, REJECTED, ACCEPTED
 - `ContractType`: CDI, CDD, INTERIM, STAGE, ALTERNANCE, FREELANCE
 
 ## Environment Variables

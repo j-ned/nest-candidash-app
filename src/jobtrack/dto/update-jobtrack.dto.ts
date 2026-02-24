@@ -64,7 +64,7 @@ export class UpdateJobTrackDto {
     description: 'Statut actuel de la candidature',
     enum: JobStatus,
     type: String,
-    example: JobStatus.PENDING,
+    example: JobStatus.APPLIED,
     required: false,
   })
   @IsOptional()

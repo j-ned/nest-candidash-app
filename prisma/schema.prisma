@@ -60,7 +60,6 @@ model JobTrack {
 
 enum JobStatus {
   APPLIED
-  PENDING
   INTERVIEW
   REJECTED
   ACCEPTED
