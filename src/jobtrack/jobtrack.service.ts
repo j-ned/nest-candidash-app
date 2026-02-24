@@ -98,6 +98,7 @@ export class JobTrackService {
   ): Promise<JobTrack> {
     const existingJobTrack = await this.prisma.jobTrack.findUnique({
       where: { id },
+      select: { userId: true },
     });
 
     if (!existingJobTrack) {
@@ -172,6 +173,7 @@ export class JobTrackService {
   async remove(id: string, userId: string): Promise<JobTrack> {
     const existingJobTrack = await this.prisma.jobTrack.findUnique({
       where: { id },
+      select: { userId: true },
     });
 
     if (!existingJobTrack) {

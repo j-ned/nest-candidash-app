@@ -13,7 +13,12 @@ async function bootstrap() {
   app.use(helmet());
 
   // Compression gzip/deflate des réponses
-  app.use(compression());
+  app.use(
+    compression({
+      level: 6,
+      threshold: 1024,
+    }),
+  );
 
   // Configuration du cookie parser pour lire les cookies HttpOnly
   app.use(cookieParser());
@@ -92,10 +97,12 @@ async function bootstrap() {
   // Gestion d'erreur globale pour éviter les crashes
   process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
+    process.exit(1);
   });
 
   process.on('unhandledRejection', (reason) => {
     console.error('Unhandled Rejection:', reason);
+    process.exit(1);
   });
 
   await app.listen(process.env.PORT ?? 3000);

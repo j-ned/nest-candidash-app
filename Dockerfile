@@ -41,4 +41,7 @@ USER node
 
 EXPOSE 3000
 
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://localhost:3000/api/v1/health').then(r=>{if(!r.ok)throw r.status})"
+
 CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/main.js"]

@@ -12,6 +12,7 @@ import {
   HttpException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Response as ExpressResponse } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -45,6 +46,7 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(200)
   @ApiAuthOperation("Authentifier l'utilisateur et obtenir un jeton d'accès")
   @ApiLoginResponse()
@@ -143,6 +145,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @HttpCode(201)
   @ApiAuthOperation(
     "Initier le processus d'inscription et envoyer un code de validation",
@@ -193,6 +196,7 @@ export class AuthController {
   }
 
   @Post('verify-registration')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(200)
   @ApiAuthOperation(
     "Valider le code de vérification et finaliser l'inscription",
@@ -247,6 +251,7 @@ export class AuthController {
   }
 
   @Post('resend-verification')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @HttpCode(200)
   @ApiAuthOperation('Renvoyer un code de validation')
   async resendVerificationCode(

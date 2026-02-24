@@ -25,6 +25,7 @@ model User {
   JobTrack             JobTrack[]
   UserTracking         UserTracking[]
 
+  @@index([resetPasswordToken])
   @@map("Utilisateurs")
 }
 
@@ -54,7 +55,7 @@ model JobTrack {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId])
+  @@index([userId, status])
   @@map("Annonces")
 }
 
@@ -105,6 +106,8 @@ model UserTracking {
   avgResponseTime        Float?    @default(0.0) // Temps moyen entre candidature et réponse (en jours)
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
+
+  @@index([userId])
 }
 
 model VerificationCode {
