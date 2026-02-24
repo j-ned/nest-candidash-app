@@ -304,16 +304,33 @@ export class JobTrackService {
         ? await tx.jobTrack.update({ where: { id }, data: updateData })
         : existing;
 
+      // Désactiver automatiquement le rappel si le statut est terminal
+      const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
+        'ACCEPTED',
+        'REJECTED',
+      ]);
+      const effectiveStatus = dto.status ?? existing.status;
+      const isTerminal = TERMINAL_STATUSES.has(effectiveStatus);
+
       // Mise à jour ou création du rappel si les champs sont fournis
       let reminderEntity = await tx.reminder.findFirst({
         where: { jobTrackId: id },
       });
+
+      // Si statut terminal, forcer la désactivation du rappel
+      if (isTerminal && reminderEntity?.isActive) {
+        reminderEntity = await tx.reminder.update({
+          where: { id: reminderEntity.id },
+          data: { isActive: false },
+        });
+      }
+
       const hasReminderInput =
         dto.frequency !== undefined ||
         dto.nextReminderAt !== undefined ||
         dto.isActive !== undefined;
 
-      if (hasReminderInput) {
+      if (hasReminderInput && !isTerminal) {
         if (reminderEntity) {
           const reminderUpdateData: {
             frequency?: number;

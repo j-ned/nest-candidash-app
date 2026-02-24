@@ -88,6 +88,9 @@ export class ReminderAutomationService {
       where: {
         isActive: true,
         nextReminderAt: { lte: now },
+        jobtrack: {
+          status: { notIn: ['ACCEPTED', 'REJECTED'] },
+        },
       },
       include: {
         jobtrack: {
