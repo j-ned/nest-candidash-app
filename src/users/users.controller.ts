@@ -80,10 +80,8 @@ export class UsersController {
     @Body(ValidationPipe) createUserDto: CreateUserDto,
     @Res({ passthrough: true }) response: ExpressResponse,
   ): Promise<AuthResponseDto> {
-    // Créer l'utilisateur
     const user = await this.usersService.create(createUserDto);
 
-    // Envoyer l'email de confirmation
     try {
       await this.mailService.sendRegistrationConfirmationEmail({
         userEmail: user.email,
