@@ -61,6 +61,7 @@ export class MailService {
       },
       tls: {
         rejectUnauthorized: false,
+        checkServerIdentity: () => undefined,
       },
     });
   }
