@@ -51,10 +51,12 @@ export class MailService {
   private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
+    const port = Number(this.configService.get('MAIL_PORT'));
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('MAIL_HOST'),
-      port: this.configService.get<number>('MAIL_PORT'),
-      secure: true, // true for 465, false for other ports
+      port,
+      secure: port === 465, // 465 = TLS implicite ; 587 = STARTTLS (secure false)
+      requireTLS: port !== 465, // force STARTTLS sur 587, jamais en clair
       auth: {
         user: this.configService.get<string>('MAIL_USER'),
         pass: this.configService.get<string>('MAIL_PASSWORD'),
