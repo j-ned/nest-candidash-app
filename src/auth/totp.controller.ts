@@ -2,7 +2,6 @@ import {
   Controller,
   Post,
   Body,
-  ValidationPipe,
   HttpCode,
   UseGuards,
   Req,
@@ -40,7 +39,7 @@ export class TotpController {
   @HttpCode(200)
   async verifySetup(
     @Req() req: AuthenticatedRequest,
-    @Body(ValidationPipe) dto: VerifyTotpSetupDto,
+    @Body() dto: VerifyTotpSetupDto,
   ): Promise<{ recoveryCodes: string[] }> {
     return this.authService.verifyTotpSetup(req.user.sub, dto.token);
   }
@@ -50,7 +49,7 @@ export class TotpController {
   @HttpCode(200)
   async disable(
     @Req() req: AuthenticatedRequest,
-    @Body(ValidationPipe) dto: DisableTotpDto,
+    @Body() dto: DisableTotpDto,
   ): Promise<{ message: string }> {
     await this.authService.disableTotp(req.user.sub, dto.password);
     return { message: '2FA désactivée avec succès' };
@@ -59,7 +58,7 @@ export class TotpController {
   @Post('validate')
   @HttpCode(200)
   async validate(
-    @Body(ValidationPipe) dto: ValidateTotpDto,
+    @Body() dto: ValidateTotpDto,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
     const authResult = await this.authService.validateTotp(
@@ -90,7 +89,7 @@ export class TotpController {
   @Post('recovery')
   @HttpCode(200)
   async recovery(
-    @Body(ValidationPipe) dto: TotpRecoveryDto,
+    @Body() dto: TotpRecoveryDto,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
     const authResult = await this.authService.useRecoveryCode(

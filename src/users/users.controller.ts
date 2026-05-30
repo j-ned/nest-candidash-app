@@ -7,9 +7,12 @@ import {
   Body,
   Param,
   UseGuards,
-  ValidationPipe,
   Request,
   ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+  Logger,
   Res,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -43,6 +46,8 @@ import {
 @ApiTags('Users')
 @Controller('accounts')
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
@@ -66,7 +71,7 @@ export class UsersController {
   async getUserById(@Param('id') id: string): Promise<UserSafe> {
     const user = await this.usersService.findOne(id);
     if (!user) {
-      throw new Error('Utilisateur introuvable');
+      throw new NotFoundException('Utilisateur introuvable');
     }
     return UserMapper.mapUserToSafe(user);
   }
@@ -77,7 +82,7 @@ export class UsersController {
   )
   @ApiRegistrationResponse()
   async createUser(
-    @Body(ValidationPipe) createUserDto: CreateUserDto,
+    @Body() createUserDto: CreateUserDto,
     @Res({ passthrough: true }) response: ExpressResponse,
   ): Promise<AuthResponseDto> {
     const user = await this.usersService.create(createUserDto);
@@ -89,9 +94,9 @@ export class UsersController {
         registrationDate: user.createdAt,
       });
     } catch (error) {
-      console.error(
-        "Erreur lors de l'envoi de l'email de confirmation:",
-        error,
+      this.logger.error(
+        "Erreur lors de l'envoi de l'email de confirmation",
+        error instanceof Error ? error.stack : String(error),
       );
     }
 
@@ -101,10 +106,10 @@ export class UsersController {
       password: createUserDto.password,
     });
 
-    // Un utilisateur fraîchement créé par admin n'a pas de 2FA, on peut faire un narrowing
+    // Un utilisateur fraîchement créé n'a jamais de 2FA : ce cas n'arrive pas,
+    // on narrow simplement le type (cookie-only, pas de token dans le body).
     if ('requires2FA' in loginResult) {
       return {
-        access_token: '',
         user: {
           id: user.id,
           email: user.email,
@@ -135,7 +140,6 @@ export class UsersController {
     });
 
     return {
-      access_token: loginResult.access_token,
       user: loginResult.user,
     };
   }
@@ -147,7 +151,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async updateUser(
     @Param('id') userId: string,
-    @Body(ValidationPipe) updateUserDto: UpdateUserDto,
+    @Body() updateUserDto: UpdateUserDto,
     @Request() req: { user: { sub: string } },
   ): Promise<UserSafe> {
     const currentUserId = req.user.sub;
@@ -188,7 +192,7 @@ export class UsersController {
   @ApiUserOperation('Demander une réinitialisation de mot de passe')
   @ApiPasswordResetRequestResponse()
   async forgotPassword(
-    @Body(ValidationPipe) forgotPasswordDto: ForgotPasswordDto,
+    @Body() forgotPasswordDto: ForgotPasswordDto,
   ) {
     const resetToken = await this.usersService.setPasswordResetToken(
       forgotPasswordDto.email,
@@ -211,9 +215,9 @@ export class UsersController {
             resetUrl,
           });
         } catch (error) {
-          console.error(
-            "Erreur lors de l'envoi de l'email de réinitialisation:",
-            error,
+          this.logger.error(
+            "Erreur lors de l'envoi de l'email de réinitialisation",
+            error instanceof Error ? error.stack : String(error),
           );
         }
       }
@@ -226,7 +230,7 @@ export class UsersController {
   @ApiUserOperation('Réinitialiser le mot de passe avec un token')
   @ApiPasswordResetResponse()
   async resetPassword(
-    @Body(ValidationPipe) resetPasswordDto: ResetPasswordDto,
+    @Body() resetPasswordDto: ResetPasswordDto,
   ) {
     const success = await this.usersService.resetPasswordWithToken(
       resetPasswordDto.token,
@@ -234,7 +238,7 @@ export class UsersController {
     );
 
     if (!success) {
-      throw new Error('Token invalide ou expiré');
+      throw new BadRequestException('Token invalide ou expiré');
     }
 
     return UserMapper.createPasswordResetResponse();
@@ -247,7 +251,7 @@ export class UsersController {
   @ApiPasswordChangeResponse()
   @UseGuards(JwtAuthGuard)
   async changePassword(
-    @Body(ValidationPipe) changePasswordDto: ChangePasswordDto,
+    @Body() changePasswordDto: ChangePasswordDto,
     @Request() req: { user: { sub: string } },
   ) {
     const userId = req.user.sub;
@@ -259,7 +263,7 @@ export class UsersController {
     );
 
     if (!success) {
-      throw new Error('Mot de passe actuel incorrect');
+      throw new UnauthorizedException('Mot de passe actuel incorrect');
     }
 
     // Send confirmation email (non-blocking)
@@ -273,9 +277,9 @@ export class UsersController {
         });
       }
     } catch (error) {
-      console.error(
-        "Erreur lors de l'envoi de l'email de confirmation de changement de mot de passe:",
-        error,
+      this.logger.error(
+        "Erreur lors de l'envoi de l'email de confirmation de changement de mot de passe",
+        error instanceof Error ? error.stack : String(error),
       );
     }
 

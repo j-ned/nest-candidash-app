@@ -7,3 +7,6 @@ generated
 *.md
 *.log
 .env*
+coverage
+test
+*.spec.ts

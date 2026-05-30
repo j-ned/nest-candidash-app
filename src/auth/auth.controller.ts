@@ -2,7 +2,6 @@ import {
   Controller,
   Post,
   Body,
-  ValidationPipe,
   HttpCode,
   UseGuards,
   Req,
@@ -51,7 +50,7 @@ export class AuthController {
   @ApiAuthOperation("Authentifier l'utilisateur et obtenir un jeton d'accès")
   @ApiLoginResponse()
   async login(
-    @Body(ValidationPipe) loginDto: LoginDto,
+    @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: ExpressResponse,
   ): Promise<AuthResponseDto | TwoFactorPendingResponse> {
     const result = await this.authService.login(loginDto);
@@ -151,7 +150,7 @@ export class AuthController {
     "Initier le processus d'inscription et envoyer un code de validation",
   )
   async register(
-    @Body(ValidationPipe) registerDto: RegisterDto,
+    @Body() registerDto: RegisterDto,
   ): Promise<{ message: string; email: string }> {
     let hasEmailSendError: boolean = false;
     try {
@@ -202,7 +201,7 @@ export class AuthController {
     "Valider le code de vérification et finaliser l'inscription",
   )
   async verifyRegistration(
-    @Body(ValidationPipe) verifyDto: VerifyRegistrationDto,
+    @Body() verifyDto: VerifyRegistrationDto,
     @Res({ passthrough: true }) response: ExpressResponse,
   ): Promise<AuthResponseDto> {
     const isValidCode = await this.verificationService.verifyCode(
@@ -255,7 +254,7 @@ export class AuthController {
   @HttpCode(200)
   @ApiAuthOperation('Renvoyer un code de validation')
   async resendVerificationCode(
-    @Body(ValidationPipe) resendDto: ResendVerificationCodeDto,
+    @Body() resendDto: ResendVerificationCodeDto,
   ): Promise<{ message: string }> {
     const canResend = await this.verificationService.canResendCode(
       resendDto.email,

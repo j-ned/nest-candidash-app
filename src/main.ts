@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ZodValidationPipe, cleanupOpenApiDoc } from 'nestjs-zod';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -53,14 +53,9 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
 
-  // Configuration globale des pipes de validation
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  // Validation globale via Zod (nestjs-zod). Les schémas .strict() reproduisent
+  // le comportement forbidNonWhitelisted (rejet des champs inconnus).
+  app.useGlobalPipes(new ZodValidationPipe());
 
   // Configuration du préfixe global des routes
   app.setGlobalPrefix('api/v1');
@@ -87,7 +82,8 @@ async function bootstrap() {
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document, {
+    // cleanupOpenApiDoc post-traite le document pour les DTOs Zod (nestjs-zod).
+    SwaggerModule.setup('api/docs', app, cleanupOpenApiDoc(document), {
       swaggerOptions: {
         persistAuthorization: true,
       },

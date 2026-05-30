@@ -1,7 +1,7 @@
-import { Role } from '../../generated/prisma/enums.js';
+import { Role } from '../../db/schema';
 
+// Cookie-only : le token n'est jamais renvoyé dans le body (uniquement cookie HttpOnly).
 export interface LoginResponse {
-  access_token: string;
   user: {
     id: string;
     email: string;
@@ -14,7 +14,7 @@ export interface LoginResponse {
 }
 
 export interface RefreshResponse {
-  access_token: string;
+  message: string;
 }
 
 export interface LogoutResponse {

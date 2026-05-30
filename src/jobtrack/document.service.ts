@@ -5,7 +5,9 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
+import { eq } from 'drizzle-orm';
+import { DrizzleService } from '../db/drizzle.service';
+import { jobTracks } from '../db/schema';
 import { StorageService } from '../storage/storage.service';
 import { Readable } from 'stream';
 
@@ -16,15 +18,15 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
 @Injectable()
 export class DocumentService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly drizzle: DrizzleService,
     private readonly storage: StorageService,
     private readonly config: ConfigService,
   ) {}
 
-  private getBucket(type: DocumentType): string {
-    return type === 'cv'
-      ? this.config.getOrThrow<string>('S3_BUCKET_CV')
-      : this.config.getOrThrow<string>('S3_BUCKET_LM');
+  // Bucket unique Cloudflare R2 (candidash-app) ; CV et LM sont distingués par
+  // le préfixe de clé (`<userId>/<jobTrackId>/cv.pdf` vs `.../lm.pdf`).
+  private getBucket(): string {
+    return this.config.getOrThrow<string>('S3_BUCKET');
   }
 
   private getS3Key(
@@ -43,9 +45,9 @@ export class DocumentService {
     jobTrackId: string,
     userId: string,
   ): Promise<void> {
-    const jobTrack = await this.prisma.jobTrack.findUnique({
-      where: { id: jobTrackId },
-      select: { userId: true },
+    const jobTrack = await this.drizzle.db.query.jobTracks.findFirst({
+      where: eq(jobTracks.id, jobTrackId),
+      columns: { userId: true },
     });
 
     if (!jobTrack) {
@@ -78,16 +80,16 @@ export class DocumentService {
     await this.verifyOwnership(jobTrackId, userId);
     this.validateFile(file);
 
-    const bucket = this.getBucket(type);
+    const bucket = this.getBucket();
     const key = this.getS3Key(userId, jobTrackId, type);
 
     await this.storage.putObject(bucket, key, file.buffer, file.mimetype);
 
     const field = this.getFileNameField(type);
-    await this.prisma.jobTrack.update({
-      where: { id: jobTrackId },
-      data: { [field]: file.originalname },
-    });
+    await this.drizzle.db
+      .update(jobTracks)
+      .set({ [field]: file.originalname, updatedAt: new Date() })
+      .where(eq(jobTracks.id, jobTrackId));
 
     return { fileName: file.originalname };
   }
@@ -99,9 +101,9 @@ export class DocumentService {
   ): Promise<{ stream: Readable; fileName: string; contentType: string }> {
     await this.verifyOwnership(jobTrackId, userId);
 
-    const jobTrack = await this.prisma.jobTrack.findUnique({
-      where: { id: jobTrackId },
-      select: { cvFileName: true, lmFileName: true },
+    const jobTrack = await this.drizzle.db.query.jobTracks.findFirst({
+      where: eq(jobTracks.id, jobTrackId),
+      columns: { cvFileName: true, lmFileName: true },
     });
 
     const fileName =
@@ -110,7 +112,7 @@ export class DocumentService {
       throw new NotFoundException('Aucun document trouvé');
     }
 
-    const bucket = this.getBucket(type);
+    const bucket = this.getBucket();
     const key = this.getS3Key(userId, jobTrackId, type);
 
     const { stream } = await this.storage.getObject(bucket, key);
@@ -129,9 +131,9 @@ export class DocumentService {
   ): Promise<void> {
     await this.verifyOwnership(jobTrackId, userId);
 
-    const jobTrack = await this.prisma.jobTrack.findUnique({
-      where: { id: jobTrackId },
-      select: { cvFileName: true, lmFileName: true },
+    const jobTrack = await this.drizzle.db.query.jobTracks.findFirst({
+      where: eq(jobTracks.id, jobTrackId),
+      columns: { cvFileName: true, lmFileName: true },
     });
 
     const fileName =
@@ -140,14 +142,14 @@ export class DocumentService {
       throw new NotFoundException('Aucun document trouvé');
     }
 
-    const bucket = this.getBucket(type);
+    const bucket = this.getBucket();
     const key = this.getS3Key(userId, jobTrackId, type);
 
     await this.storage.deleteObject(bucket, key);
 
-    await this.prisma.jobTrack.update({
-      where: { id: jobTrackId },
-      data: { [this.getFileNameField(type)]: null },
-    });
+    await this.drizzle.db
+      .update(jobTracks)
+      .set({ [this.getFileNameField(type)]: null, updatedAt: new Date() })
+      .where(eq(jobTracks.id, jobTrackId));
   }
 }

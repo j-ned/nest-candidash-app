@@ -50,7 +50,7 @@ export class AuthService {
       return AuthMapper.mapToTwoFactorPendingResponse(tempToken);
     }
 
-    return this.generateFullAuthTokens(user as User);
+    return this.generateFullAuthTokens(user);
   }
 
   async loginAfterRegistration(email: string): Promise<AuthResult> {
@@ -59,12 +59,12 @@ export class AuthService {
       throw new UnauthorizedException('Utilisateur introuvable');
     }
 
-    return this.generateFullAuthTokens(user as User);
+    return this.generateFullAuthTokens(user);
   }
 
   async validateUser(userId: string): Promise<UserSafe | null> {
     const user = await this.usersService.findOne(userId);
-    return user ? AuthMapper.mapUserToSafe(user as User) : null;
+    return user ? AuthMapper.mapUserToSafe(user) : null;
   }
 
   async refreshToken(refreshToken: string): Promise<AuthResult> {
@@ -94,7 +94,7 @@ export class AuthService {
       throw new UnauthorizedException('Utilisateur introuvable');
     }
 
-    return this.generateFullAuthTokens(user as User);
+    return this.generateFullAuthTokens(user);
   }
 
   async logout(userId: string): Promise<LogoutResponse> {
@@ -155,7 +155,7 @@ export class AuthService {
       throw new UnauthorizedException('Code TOTP invalide');
     }
 
-    return this.generateFullAuthTokens(user as User);
+    return this.generateFullAuthTokens(user);
   }
 
   async useRecoveryCode(
@@ -179,7 +179,7 @@ export class AuthService {
 
     await this.usersService.removeRecoveryCode(user.id, codeIndex);
 
-    return this.generateFullAuthTokens(user as User);
+    return this.generateFullAuthTokens(user);
   }
 
   async disableTotp(userId: string, password: string): Promise<void> {
