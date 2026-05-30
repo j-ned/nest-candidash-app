@@ -3,11 +3,11 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { JobStatus, ContractType } from '../generated/prisma/enums.js';
+import { and, eq, desc } from 'drizzle-orm';
+import { DrizzleService } from '../db/drizzle.service';
+import { jobTracks, reminders, JobStatus, ContractType } from '../db/schema';
 import { CreateJobTrackDto } from './dto/create-jobtrack.dto';
 import { UpdateJobTrackDto } from './dto/update-jobtrack.dto';
-import type { Prisma } from '../generated/prisma/client.js';
 import {
   JobTrack,
   JobTrackCreateData,
@@ -22,69 +22,62 @@ import { JobTrackMapper, ReminderMapper } from './mappers';
 
 @Injectable()
 export class JobTrackService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   /**
    * Crée un nouveau suivi de candidature pour un utilisateur
    */
-  async create(
-    userId: string,
-    createJobTrackDto: CreateJobTrackDto,
-  ): Promise<JobTrack> {
-    const prismaJobTrack = await this.prisma.jobTrack.create({
-      data: {
+  async create(userId: string, dto: CreateJobTrackDto): Promise<JobTrack> {
+    const [row] = await this.drizzle.db
+      .insert(jobTracks)
+      .values({
         userId,
-        title: createJobTrackDto.title,
-        company: createJobTrackDto.company,
-        jobUrl: createJobTrackDto.jobUrl,
-        appliedAt: createJobTrackDto.appliedAt
-          ? new Date(createJobTrackDto.appliedAt)
-          : undefined,
-        status: createJobTrackDto.status || 'APPLIED',
-        contractType: createJobTrackDto.contractType,
-        notes: createJobTrackDto.notes,
-      },
-    });
+        title: dto.title,
+        company: dto.company,
+        jobUrl: dto.jobUrl,
+        appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
+        status: dto.status ?? 'APPLIED',
+        contractType: dto.contractType,
+        notes: dto.notes,
+      })
+      .returning();
 
-    return JobTrackMapper.mapPrismaJobTrackToJobTrack(prismaJobTrack);
+    return JobTrackMapper.mapJobTrackToJobTrack(row);
   }
 
   /**
    * Récupère tous les suivis de candidature d’un utilisateur
    */
   async findAllByUser(userId: string): Promise<JobTrack[]> {
-    const prismaJobTracks = await this.prisma.jobTrack.findMany({
-      where: { userId },
-      include: { reminders: true },
-      orderBy: { createdAt: 'desc' },
+    const rows = await this.drizzle.db.query.jobTracks.findMany({
+      where: eq(jobTracks.userId, userId),
+      with: { reminders: true },
+      orderBy: [desc(jobTracks.createdAt)],
     });
-
-    return prismaJobTracks.map((jobTrack) =>
-      JobTrackMapper.mapPrismaJobTrackToJobTrack(jobTrack),
-    );
+    return rows.map((r) => JobTrackMapper.mapJobTrackToJobTrack(r));
   }
 
   /**
    * Récupère un suivi de candidature spécifique par son ID
    */
   async findOne(id: string, userId: string): Promise<JobTrack | null> {
-    const prismaJobTrack = await this.prisma.jobTrack.findUnique({
-      where: { id },
-      include: { reminders: true },
+    const row = await this.drizzle.db.query.jobTracks.findFirst({
+      where: eq(jobTracks.id, id),
+      with: { reminders: true },
     });
 
-    if (!prismaJobTrack) {
+    if (!row) {
       return null;
     }
 
     // Vérification de la propriété
-    if (prismaJobTrack.userId !== userId) {
+    if (row.userId !== userId) {
       throw new ForbiddenException(
         "Vous ne pouvez accéder qu'à vos propres annonces",
       );
     }
 
-    return JobTrackMapper.mapPrismaJobTrackToJobTrack(prismaJobTrack);
+    return JobTrackMapper.mapJobTrackToJobTrack(row);
   }
 
   /**
@@ -93,40 +86,37 @@ export class JobTrackService {
   async update(
     id: string,
     userId: string,
-    updateJobTrackDto: UpdateJobTrackDto,
+    dto: UpdateJobTrackDto,
     upsert = false,
   ): Promise<JobTrack> {
-    const existingJobTrack = await this.prisma.jobTrack.findUnique({
-      where: { id },
-      select: { userId: true },
+    const existing = await this.drizzle.db.query.jobTracks.findFirst({
+      where: eq(jobTracks.id, id),
+      columns: { userId: true },
     });
 
-    if (!existingJobTrack) {
+    if (!existing) {
       if (upsert) {
-        const prismaJobTrackCreate = await this.prisma.jobTrack.create({
-          data: {
+        const [created] = await this.drizzle.db
+          .insert(jobTracks)
+          .values({
             id,
             userId,
-            title: updateJobTrackDto.title ?? 'New Job',
-            company: updateJobTrackDto.company,
-            jobUrl: updateJobTrackDto.jobUrl,
-            appliedAt:
-              updateJobTrackDto.appliedAt !== undefined &&
-              updateJobTrackDto.appliedAt
-                ? new Date(updateJobTrackDto.appliedAt)
-                : undefined,
-            status: updateJobTrackDto.status ?? 'APPLIED',
-            contractType: updateJobTrackDto.contractType,
-            notes: updateJobTrackDto.notes,
-          },
-        });
-        return JobTrackMapper.mapPrismaJobTrackToJobTrack(prismaJobTrackCreate);
+            title: dto.title ?? 'New Job',
+            company: dto.company,
+            jobUrl: dto.jobUrl,
+            appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
+            status: dto.status ?? 'APPLIED',
+            contractType: dto.contractType,
+            notes: dto.notes,
+          })
+          .returning();
+        return JobTrackMapper.mapJobTrackToJobTrack(created);
       }
       throw new NotFoundException('Annonce introuvable');
     }
 
     // Vérification de la propriété
-    if (existingJobTrack.userId !== userId) {
+    if (existing.userId !== userId) {
       throw new ForbiddenException(
         'Vous ne pouvez modifier que vos propres annonces',
       );
@@ -134,64 +124,59 @@ export class JobTrackService {
 
     const updateData: Partial<{
       title: string;
-      company: string;
-      jobUrl: string;
-      appliedAt: Date;
+      company: string | null;
+      jobUrl: string | null;
+      appliedAt: Date | null;
       status: JobStatus;
-      contractType: ContractType;
-      notes: string;
+      contractType: ContractType | null;
+      notes: string | null;
     }> = {};
 
-    if (updateJobTrackDto.title !== undefined)
-      updateData.title = updateJobTrackDto.title;
-    if (updateJobTrackDto.company !== undefined)
-      updateData.company = updateJobTrackDto.company;
-    if (updateJobTrackDto.jobUrl !== undefined)
-      updateData.jobUrl = updateJobTrackDto.jobUrl;
-    if (updateJobTrackDto.appliedAt !== undefined)
-      updateData.appliedAt = updateJobTrackDto.appliedAt
-        ? new Date(updateJobTrackDto.appliedAt)
-        : undefined;
-    if (updateJobTrackDto.status !== undefined)
-      updateData.status = updateJobTrackDto.status;
-    if (updateJobTrackDto.contractType !== undefined)
-      updateData.contractType = updateJobTrackDto.contractType;
-    if (updateJobTrackDto.notes !== undefined)
-      updateData.notes = updateJobTrackDto.notes;
+    if (dto.title !== undefined) updateData.title = dto.title;
+    if (dto.company !== undefined) updateData.company = dto.company;
+    if (dto.jobUrl !== undefined) updateData.jobUrl = dto.jobUrl;
+    if (dto.appliedAt !== undefined)
+      updateData.appliedAt = dto.appliedAt ? new Date(dto.appliedAt) : null;
+    if (dto.status !== undefined) updateData.status = dto.status;
+    if (dto.contractType !== undefined)
+      updateData.contractType = dto.contractType;
+    if (dto.notes !== undefined) updateData.notes = dto.notes;
 
-    const prismaJobTrack = await this.prisma.jobTrack.update({
-      where: { id },
-      data: updateData,
-    });
+    const [updated] = await this.drizzle.db
+      .update(jobTracks)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(jobTracks.id, id))
+      .returning();
 
-    return JobTrackMapper.mapPrismaJobTrackToJobTrack(prismaJobTrack);
+    return JobTrackMapper.mapJobTrackToJobTrack(updated);
   }
 
   /**
    * Supprime un suivi de candidature
    */
   async remove(id: string, userId: string): Promise<JobTrack> {
-    const existingJobTrack = await this.prisma.jobTrack.findUnique({
-      where: { id },
-      select: { userId: true },
+    const existing = await this.drizzle.db.query.jobTracks.findFirst({
+      where: eq(jobTracks.id, id),
+      columns: { userId: true },
     });
 
-    if (!existingJobTrack) {
+    if (!existing) {
       throw new NotFoundException('Annonce introuvable');
     }
 
     // Vérification de la propriété
-    if (existingJobTrack.userId !== userId) {
+    if (existing.userId !== userId) {
       throw new ForbiddenException(
         'Vous ne pouvez supprimer que vos propres annonces',
       );
     }
 
-    const prismaJobTrack = await this.prisma.jobTrack.delete({
-      where: { id },
-    });
+    const [deleted] = await this.drizzle.db
+      .delete(jobTracks)
+      .where(eq(jobTracks.id, id))
+      .returning();
 
-    return JobTrackMapper.mapPrismaJobTrackToJobTrack(prismaJobTrack);
+    return JobTrackMapper.mapJobTrackToJobTrack(deleted);
   }
 
   /**
@@ -201,32 +186,34 @@ export class JobTrackService {
     userId: string,
     dto: JobTrackCreateData & ReminderCreateData,
   ): Promise<JobTrackWithReminder> {
-    return this.prisma.$transaction(async (tx) => {
-      const createdJobTrack = await tx.jobTrack.create({
-        data: {
+    return this.drizzle.db.transaction(async (tx) => {
+      const [createdJobTrack] = await tx
+        .insert(jobTracks)
+        .values({
           userId,
           title: dto.title,
           company: dto.company,
           jobUrl: dto.jobUrl,
           appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
-          status: dto.status || 'APPLIED',
+          status: dto.status ?? 'APPLIED',
           contractType: dto.contractType,
           notes: dto.notes,
-        },
-      });
+        })
+        .returning();
 
-      const createdReminder = await tx.reminder.create({
-        data: {
+      const [createdReminder] = await tx
+        .insert(reminders)
+        .values({
           jobTrackId: createdJobTrack.id,
           frequency: dto.frequency,
           nextReminderAt: new Date(dto.nextReminderAt),
           isActive: dto.isActive ?? true,
-        },
-      });
+        })
+        .returning();
 
       return {
-        jobTrack: JobTrackMapper.mapPrismaJobTrackToJobTrack(createdJobTrack),
-        reminder: ReminderMapper.mapPrismaReminderToReminder(createdReminder),
+        jobTrack: JobTrackMapper.mapJobTrackToJobTrack(createdJobTrack),
+        reminder: ReminderMapper.mapReminderToReminder(createdReminder),
       };
     });
   }
@@ -240,14 +227,17 @@ export class JobTrackService {
     dto: JobTrackUpdateData & ReminderUpdateData,
     upsert = false,
   ): Promise<JobTrackWithOptionalReminder> {
-    return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.jobTrack.findUnique({ where: { id } });
+    return this.drizzle.db.transaction(async (tx) => {
+      const existing = await tx.query.jobTracks.findFirst({
+        where: eq(jobTracks.id, id),
+      });
 
       if (!existing) {
         if (!upsert) throw new NotFoundException('Annonce introuvable');
 
-        const createdJob = await tx.jobTrack.create({
-          data: {
+        const [createdJob] = await tx
+          .insert(jobTracks)
+          .values({
             id,
             userId,
             title: dto.title ?? 'New Job',
@@ -257,25 +247,26 @@ export class JobTrackService {
             status: dto.status ?? 'APPLIED',
             contractType: dto.contractType,
             notes: dto.notes,
-          },
-        });
+          })
+          .returning();
 
         // Création du rappel si les données sont fournies
         let reminder: Reminder | null = null;
         if (dto.frequency !== undefined && dto.nextReminderAt) {
-          const createdRem = await tx.reminder.create({
-            data: {
+          const [createdRem] = await tx
+            .insert(reminders)
+            .values({
               jobTrackId: createdJob.id,
               frequency: dto.frequency,
               nextReminderAt: new Date(dto.nextReminderAt),
               isActive: dto.isActive ?? true,
-            },
-          });
-          reminder = ReminderMapper.mapPrismaReminderToReminder(createdRem);
+            })
+            .returning();
+          reminder = ReminderMapper.mapReminderToReminder(createdRem);
         }
 
         return {
-          jobTrack: JobTrackMapper.mapPrismaJobTrackToJobTrack(createdJob),
+          jobTrack: JobTrackMapper.mapJobTrackToJobTrack(createdJob),
           reminder,
         };
       }
@@ -286,22 +277,34 @@ export class JobTrackService {
         );
       }
 
-      const updateData: Prisma.JobTrackUpdateInput = {};
+      const updateData: Partial<{
+        title: string;
+        company: string | null;
+        jobUrl: string | null;
+        appliedAt: Date | null;
+        status: JobStatus;
+        contractType: ContractType | null;
+        notes: string | null;
+      }> = {};
 
       if (dto.title !== undefined) updateData.title = dto.title;
       if (dto.company !== undefined) updateData.company = dto.company;
       if (dto.jobUrl !== undefined) updateData.jobUrl = dto.jobUrl;
       if (dto.appliedAt !== undefined)
-        updateData.appliedAt = dto.appliedAt
-          ? new Date(dto.appliedAt)
-          : undefined;
+        updateData.appliedAt = dto.appliedAt ? new Date(dto.appliedAt) : null;
       if (dto.status !== undefined) updateData.status = dto.status;
       if (dto.contractType !== undefined)
         updateData.contractType = dto.contractType;
       if (dto.notes !== undefined) updateData.notes = dto.notes;
 
       const updated = Object.keys(updateData).length
-        ? await tx.jobTrack.update({ where: { id }, data: updateData })
+        ? (
+            await tx
+              .update(jobTracks)
+              .set({ ...updateData, updatedAt: new Date() })
+              .where(eq(jobTracks.id, id))
+              .returning()
+          )[0]
         : existing;
 
       // Désactiver automatiquement le rappel si le statut est terminal
@@ -313,16 +316,17 @@ export class JobTrackService {
       const isTerminal = TERMINAL_STATUSES.has(effectiveStatus);
 
       // Mise à jour ou création du rappel si les champs sont fournis
-      let reminderEntity = await tx.reminder.findFirst({
-        where: { jobTrackId: id },
+      let reminderEntity = await tx.query.reminders.findFirst({
+        where: eq(reminders.jobTrackId, id),
       });
 
       // Si statut terminal, forcer la désactivation du rappel
       if (isTerminal && reminderEntity?.isActive) {
-        reminderEntity = await tx.reminder.update({
-          where: { id: reminderEntity.id },
-          data: { isActive: false },
-        });
+        [reminderEntity] = await tx
+          .update(reminders)
+          .set({ isActive: false, updatedAt: new Date() })
+          .where(eq(reminders.id, reminderEntity.id))
+          .returning();
       }
 
       const hasReminderInput =
@@ -332,40 +336,40 @@ export class JobTrackService {
 
       if (hasReminderInput && !isTerminal) {
         if (reminderEntity) {
-          const reminderUpdateData: {
-            frequency?: number;
-            nextReminderAt?: Date;
-            isActive?: boolean;
-          } = {};
+          const reminderUpdateData: Partial<{
+            frequency: number;
+            nextReminderAt: Date;
+            isActive: boolean;
+          }> = {};
           if (dto.frequency !== undefined)
             reminderUpdateData.frequency = dto.frequency;
           if (dto.nextReminderAt !== undefined)
-            reminderUpdateData.nextReminderAt = dto.nextReminderAt
-              ? new Date(dto.nextReminderAt)
-              : undefined;
+            reminderUpdateData.nextReminderAt = new Date(dto.nextReminderAt);
           if (dto.isActive !== undefined)
             reminderUpdateData.isActive = dto.isActive;
 
-          reminderEntity = await tx.reminder.update({
-            where: { id: reminderEntity.id },
-            data: reminderUpdateData,
-          });
+          [reminderEntity] = await tx
+            .update(reminders)
+            .set({ ...reminderUpdateData, updatedAt: new Date() })
+            .where(eq(reminders.id, reminderEntity.id))
+            .returning();
         } else if (dto.frequency !== undefined && dto.nextReminderAt) {
-          reminderEntity = await tx.reminder.create({
-            data: {
+          [reminderEntity] = await tx
+            .insert(reminders)
+            .values({
               jobTrackId: id,
               frequency: dto.frequency,
               nextReminderAt: new Date(dto.nextReminderAt),
               isActive: dto.isActive ?? true,
-            },
-          });
+            })
+            .returning();
         }
       }
 
       return {
-        jobTrack: JobTrackMapper.mapPrismaJobTrackToJobTrack(updated),
+        jobTrack: JobTrackMapper.mapJobTrackToJobTrack(updated),
         reminder: reminderEntity
-          ? ReminderMapper.mapPrismaReminderToReminder(reminderEntity)
+          ? ReminderMapper.mapReminderToReminder(reminderEntity)
           : null,
       };
     });
@@ -375,14 +379,11 @@ export class JobTrackService {
    * Récupère tous les suivis de candidature d’un utilisateur selon leur statut
    */
   async findByStatus(userId: string, status: JobStatus): Promise<JobTrack[]> {
-    const prismaJobTracks = await this.prisma.jobTrack.findMany({
-      where: { userId, status },
-      include: { reminders: true },
-      orderBy: { createdAt: 'desc' },
+    const rows = await this.drizzle.db.query.jobTracks.findMany({
+      where: and(eq(jobTracks.userId, userId), eq(jobTracks.status, status)),
+      with: { reminders: true },
+      orderBy: [desc(jobTracks.createdAt)],
     });
-
-    return prismaJobTracks.map((jobTrack) =>
-      JobTrackMapper.mapPrismaJobTrackToJobTrack(jobTrack),
-    );
+    return rows.map((r) => JobTrackMapper.mapJobTrackToJobTrack(r));
   }
 }

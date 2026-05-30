@@ -7,7 +7,6 @@ import {
   Body,
   Param,
   UseGuards,
-  ValidationPipe,
   Request,
   ForbiddenException,
   Res,
@@ -77,7 +76,7 @@ export class UsersController {
   )
   @ApiRegistrationResponse()
   async createUser(
-    @Body(ValidationPipe) createUserDto: CreateUserDto,
+    @Body() createUserDto: CreateUserDto,
     @Res({ passthrough: true }) response: ExpressResponse,
   ): Promise<AuthResponseDto> {
     const user = await this.usersService.create(createUserDto);
@@ -147,7 +146,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async updateUser(
     @Param('id') userId: string,
-    @Body(ValidationPipe) updateUserDto: UpdateUserDto,
+    @Body() updateUserDto: UpdateUserDto,
     @Request() req: { user: { sub: string } },
   ): Promise<UserSafe> {
     const currentUserId = req.user.sub;
@@ -188,7 +187,7 @@ export class UsersController {
   @ApiUserOperation('Demander une réinitialisation de mot de passe')
   @ApiPasswordResetRequestResponse()
   async forgotPassword(
-    @Body(ValidationPipe) forgotPasswordDto: ForgotPasswordDto,
+    @Body() forgotPasswordDto: ForgotPasswordDto,
   ) {
     const resetToken = await this.usersService.setPasswordResetToken(
       forgotPasswordDto.email,
@@ -226,7 +225,7 @@ export class UsersController {
   @ApiUserOperation('Réinitialiser le mot de passe avec un token')
   @ApiPasswordResetResponse()
   async resetPassword(
-    @Body(ValidationPipe) resetPasswordDto: ResetPasswordDto,
+    @Body() resetPasswordDto: ResetPasswordDto,
   ) {
     const success = await this.usersService.resetPasswordWithToken(
       resetPasswordDto.token,
@@ -247,7 +246,7 @@ export class UsersController {
   @ApiPasswordChangeResponse()
   @UseGuards(JwtAuthGuard)
   async changePassword(
-    @Body(ValidationPipe) changePasswordDto: ChangePasswordDto,
+    @Body() changePasswordDto: ChangePasswordDto,
     @Request() req: { user: { sub: string } },
   ) {
     const userId = req.user.sub;

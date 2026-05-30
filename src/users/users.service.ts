@@ -3,7 +3,9 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { and, eq, gte, desc } from 'drizzle-orm';
+import { DrizzleService } from '../db/drizzle.service';
+import { users } from '../db/schema';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { User, UserCreateData, UserUpdateData } from './interfaces';
@@ -11,11 +13,11 @@ import { UserMapper } from './mappers';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async create(createUserData: UserCreateData): Promise<User> {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: createUserData.email },
+    const existingUser = await this.drizzle.db.query.users.findFirst({
+      where: eq(users.email, createUserData.email),
     });
 
     if (existingUser) {
@@ -24,40 +26,41 @@ export class UsersService {
 
     const hashedPassword = await this.hashPassword(createUserData.password);
 
-    const prismaUser = await this.prisma.user.create({
-      data: {
+    const [row] = await this.drizzle.db
+      .insert(users)
+      .values({
         email: createUserData.email,
         username: createUserData.username,
         password: hashedPassword,
-        role: createUserData.role || 'USER',
-      },
-    });
+        role: createUserData.role ?? 'USER',
+      })
+      .returning();
 
-    return UserMapper.mapPrismaUserToUser(prismaUser);
+    return UserMapper.mapUserRowToUser(row);
   }
 
   async findAll(): Promise<User[]> {
-    const prismaUsers = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
+    const rows = await this.drizzle.db.query.users.findMany({
+      orderBy: [desc(users.createdAt)],
     });
 
-    return prismaUsers.map((user) => UserMapper.mapPrismaUserToUser(user));
+    return rows.map((u) => UserMapper.mapUserRowToUser(u));
   }
 
   async findOne(id: string): Promise<User | null> {
-    const prismaUser = await this.prisma.user.findUnique({
-      where: { id },
+    const row = await this.drizzle.db.query.users.findFirst({
+      where: eq(users.id, id),
     });
 
-    return prismaUser ? UserMapper.mapPrismaUserToUser(prismaUser) : null;
+    return row ? UserMapper.mapUserRowToUser(row) : null;
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const prismaUser = await this.prisma.user.findUnique({
-      where: { email },
+    const row = await this.drizzle.db.query.users.findFirst({
+      where: eq(users.email, email),
     });
 
-    return prismaUser ? UserMapper.mapPrismaUserToUser(prismaUser) : null;
+    return row ? UserMapper.mapUserRowToUser(row) : null;
   }
 
   async update(updateUserData: UserUpdateData): Promise<User> {
@@ -76,7 +79,7 @@ export class UsersService {
       email: string;
       username: string;
       password: string;
-      role: typeof updateUserData.role;
+      role: User['role'];
     }> = {};
 
     if (updateUserData.email) {
@@ -92,12 +95,13 @@ export class UsersService {
       updateData.role = updateUserData.role;
     }
 
-    const prismaUser = await this.prisma.user.update({
-      where: { id: updateUserData.id },
-      data: updateData,
-    });
+    const [row] = await this.drizzle.db
+      .update(users)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(users.id, updateUserData.id))
+      .returning();
 
-    return UserMapper.mapPrismaUserToUser(prismaUser);
+    return UserMapper.mapUserRowToUser(row);
   }
 
   async remove(id: string): Promise<User> {
@@ -106,11 +110,12 @@ export class UsersService {
       throw new NotFoundException('Utilisateur introuvable');
     }
 
-    const prismaUser = await this.prisma.user.delete({
-      where: { id },
-    });
+    const [row] = await this.drizzle.db
+      .delete(users)
+      .where(eq(users.id, id))
+      .returning();
 
-    return UserMapper.mapPrismaUserToUser(prismaUser);
+    return UserMapper.mapUserRowToUser(row);
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {
@@ -127,10 +132,10 @@ export class UsersService {
       if (sha256Hash === user.password) {
         // Migrate to bcrypt on successful login
         const bcryptHash = await bcrypt.hash(password, 12);
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: { password: bcryptHash },
-        });
+        await this.drizzle.db
+          .update(users)
+          .set({ password: bcryptHash, updatedAt: new Date() })
+          .where(eq(users.id, user.id));
         return true;
       }
       return false;
@@ -152,13 +157,14 @@ export class UsersService {
     const resetExpires = new Date();
     resetExpires.setHours(resetExpires.getHours() + 1); // Token expires in 1 hour
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
+    await this.drizzle.db
+      .update(users)
+      .set({
         resetPasswordToken: resetToken,
         resetPasswordExpires: resetExpires,
-      },
-    });
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
 
     return resetToken;
   }
@@ -167,29 +173,28 @@ export class UsersService {
     token: string,
     newPassword: string,
   ): Promise<boolean> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        resetPasswordToken: token,
-        resetPasswordExpires: {
-          gte: new Date(),
-        },
-      },
+    const row = await this.drizzle.db.query.users.findFirst({
+      where: and(
+        eq(users.resetPasswordToken, token),
+        gte(users.resetPasswordExpires, new Date()),
+      ),
     });
 
-    if (!user) {
+    if (!row) {
       return false;
     }
 
     const hashedPassword = await this.hashPassword(newPassword);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
+    await this.drizzle.db
+      .update(users)
+      .set({
         password: hashedPassword,
         resetPasswordToken: null,
         resetPasswordExpires: null,
-      },
-    });
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, row.id));
 
     return true;
   }
@@ -210,12 +215,10 @@ export class UsersService {
 
     const hashedPassword = await this.hashPassword(newPassword);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        password: hashedPassword,
-      },
-    });
+    await this.drizzle.db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, userId));
 
     return true;
   }
@@ -227,93 +230,97 @@ export class UsersService {
   ): Promise<void> {
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
+    await this.drizzle.db
+      .update(users)
+      .set({
         refreshToken: hashedRefreshToken,
         refreshTokenExpires: expiresAt,
-      },
-    });
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 
   async validateRefreshToken(
     userId: string,
     refreshToken: string,
   ): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { refreshToken: true, refreshTokenExpires: true },
+    const row = await this.drizzle.db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { refreshToken: true, refreshTokenExpires: true },
     });
 
-    if (!user?.refreshToken || !user.refreshTokenExpires) {
+    if (!row?.refreshToken || !row.refreshTokenExpires) {
       return false;
     }
 
-    if (new Date() > user.refreshTokenExpires) {
+    if (new Date() > row.refreshTokenExpires) {
       return false;
     }
 
-    return bcrypt.compare(refreshToken, user.refreshToken);
+    return bcrypt.compare(refreshToken, row.refreshToken);
   }
 
   async clearRefreshToken(userId: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
+    await this.drizzle.db
+      .update(users)
+      .set({
         refreshToken: null,
         refreshTokenExpires: null,
-      },
-    });
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 
   async updateTotpSecret(
     userId: string,
     encryptedSecret: string,
   ): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { totpSecret: encryptedSecret },
-    });
+    await this.drizzle.db
+      .update(users)
+      .set({ totpSecret: encryptedSecret, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 
   async enableTotp(
     userId: string,
     hashedRecoveryCodes: string[],
   ): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
+    await this.drizzle.db
+      .update(users)
+      .set({
         totpEnabled: true,
         totpRecoveryCodes: hashedRecoveryCodes,
-      },
-    });
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 
   async disableTotp(userId: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
+    await this.drizzle.db
+      .update(users)
+      .set({
         totpSecret: null,
         totpEnabled: false,
         totpRecoveryCodes: [],
-      },
-    });
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 
   async removeRecoveryCode(userId: string, codeIndex: number): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { totpRecoveryCodes: true },
+    const row = await this.drizzle.db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { totpRecoveryCodes: true },
     });
-    if (!user) return;
+    if (!row) return;
 
-    const codes = [...user.totpRecoveryCodes];
+    const codes = [...row.totpRecoveryCodes];
     codes.splice(codeIndex, 1);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { totpRecoveryCodes: codes },
-    });
+    await this.drizzle.db
+      .update(users)
+      .set({ totpRecoveryCodes: codes, updatedAt: new Date() })
+      .where(eq(users.id, userId));
   }
 
   async hashPassword(password: string): Promise<string> {

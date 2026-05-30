@@ -1,4 +1,4 @@
-import { User as PrismaUser } from '../../generated/prisma/client.js';
+import { UserRow } from '../../db/schema';
 import {
   User,
   UserSafe,
@@ -10,24 +10,24 @@ import {
 
 export class UserMapper {
   /**
-   * Convertit un utilisateur Prisma en interface User
+   * Convertit une ligne Drizzle en interface User
    */
-  static mapPrismaUserToUser(prismaUser: PrismaUser): User {
+  static mapUserRowToUser(row: UserRow): User {
     return {
-      id: prismaUser.id,
-      email: prismaUser.email,
-      username: prismaUser.username ?? undefined,
-      password: prismaUser.password,
-      role: prismaUser.role,
-      refreshToken: prismaUser.refreshToken ?? undefined,
-      refreshTokenExpires: prismaUser.refreshTokenExpires ?? undefined,
-      resetPasswordToken: prismaUser.resetPasswordToken ?? undefined,
-      resetPasswordExpires: prismaUser.resetPasswordExpires ?? undefined,
-      totpSecret: prismaUser.totpSecret ?? undefined,
-      totpEnabled: prismaUser.totpEnabled,
-      totpRecoveryCodes: prismaUser.totpRecoveryCodes,
-      createdAt: prismaUser.createdAt,
-      updatedAt: prismaUser.updatedAt,
+      id: row.id,
+      email: row.email,
+      username: row.username ?? undefined,
+      password: row.password,
+      role: row.role,
+      refreshToken: row.refreshToken ?? undefined,
+      refreshTokenExpires: row.refreshTokenExpires ?? undefined,
+      resetPasswordToken: row.resetPasswordToken ?? undefined,
+      resetPasswordExpires: row.resetPasswordExpires ?? undefined,
+      totpSecret: row.totpSecret ?? undefined,
+      totpEnabled: row.totpEnabled,
+      totpRecoveryCodes: row.totpRecoveryCodes,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   }
 
