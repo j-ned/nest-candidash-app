@@ -40,20 +40,20 @@ export class AuthMapper {
    * Convertit une AuthResult complète en LoginResponse (pour l'API)
    */
   static mapAuthResultToLoginResponse(authResult: AuthResult): LoginResponse {
+    // Token volontairement absent du body : il est posé en cookie HttpOnly.
     return {
-      access_token: authResult.access_token,
       user: authResult.user,
     };
   }
 
   /**
-   * Extrait uniquement l'access token pour les réponses de refresh
+   * Réponse de refresh : token renouvelé via cookie HttpOnly, pas dans le body.
    */
   static mapAuthResultToRefreshResponse(
-    authResult: AuthResult,
+    _authResult: AuthResult,
   ): RefreshResponse {
     return {
-      access_token: authResult.access_token,
+      message: 'Jeton renouvelé',
     };
   }
 

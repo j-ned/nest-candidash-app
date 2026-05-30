@@ -2,7 +2,6 @@ import { UserRow } from '../../db/schema';
 import {
   User,
   UserSafe,
-  RegistrationResponse,
   PasswordResetRequestResponse,
   PasswordResetResponse,
   PasswordChangeResponse,
@@ -43,19 +42,6 @@ export class UserMapper {
       totpEnabled: user.totpEnabled,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-    };
-  }
-
-  /**
-   * Crée une réponse d'enregistrement
-   */
-  static createRegistrationResponse(
-    access_token: string,
-    user: UserSafe,
-  ): RegistrationResponse {
-    return {
-      access_token,
-      user,
     };
   }
 

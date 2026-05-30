@@ -9,10 +9,6 @@ export interface UserResponse {
   user: UserSafe;
 }
 
-export interface RegistrationResponse {
-  access_token: string;
-  user: UserSafe;
-}
 
 export interface PasswordResetRequestResponse {
   message: string;

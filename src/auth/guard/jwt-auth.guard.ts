@@ -19,9 +19,9 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
 
-    const token =
-      this.extractTokenFromCookie(request) ??
-      this.extractTokenFromHeader(request);
+    // Cookie-only : le token vit exclusivement dans le cookie HttpOnly
+    // `access_token`. Aucun fallback header Bearer (token jamais exposé au JS).
+    const token = this.extractTokenFromCookie(request);
     if (!token) {
       throw new UnauthorizedException("Jeton d'authentification manquant");
     }
@@ -39,11 +39,5 @@ export class JwtAuthGuard implements CanActivate {
   private extractTokenFromCookie(request: RequestWithUser): string | undefined {
     const token = request.cookies?.['access_token'];
     return token && token.length > 0 ? token : undefined;
-  }
-
-  private extractTokenFromHeader(request: RequestWithUser): string | undefined {
-    const authHeader = request.headers['authorization'] as string | undefined;
-    const [type, token] = authHeader?.split(' ') ?? [];
-    return type === 'Bearer' ? token : undefined;
   }
 }

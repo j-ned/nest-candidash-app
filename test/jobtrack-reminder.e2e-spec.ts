@@ -1,25 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { ZodValidationPipe } from 'nestjs-zod';
+import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 
 interface LoginDto {
   email: string;
   password: string;
-}
-
-interface AuthResponseDto {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
-  user: {
-    id: string;
-    email: string;
-    username?: string | null;
-    role: string;
-  };
 }
 
 interface CreateUserDto {
@@ -79,6 +67,9 @@ interface JobTrackWithReminderResponseDto extends JobTrackResponseDto {
 
 // Helper to configure the app similarly to main.ts
 async function configureApp(app: INestApplication): Promise<void> {
+  // cookie-parser : indispensable pour que le JwtAuthGuard lise le cookie
+  // HttpOnly `access_token` (parité avec main.ts, auth cookie-only).
+  app.use(cookieParser());
   app.useGlobalPipes(new ZodValidationPipe());
   app.setGlobalPrefix('api/v1');
   await app.init();
@@ -96,7 +87,7 @@ function api(server: Parameters<typeof request>[0]) {
 describe('JobTrack & Reminder CRUD (e2e)', () => {
   let app: INestApplication;
   let httpServer: Parameters<typeof request>[0];
-  let authToken: string;
+  let authCookies: string[];
   let createdJobTrack: JobTrackResponseDto;
   let createdReminder: ReminderResponseDto;
 
@@ -136,9 +127,18 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
     }
 
     expect(loginRes.status).toBe(200);
-    const auth: AuthResponseDto = loginRes.body as AuthResponseDto;
-    expect(auth.access_token).toBeDefined();
-    authToken = auth.access_token;
+    // Cookie-only : on capture les cookies HttpOnly (access_token + refresh_token)
+    // pour les rejouer sur les requêtes authentifiées (plus de Bearer / token dans le body).
+    const setCookie = loginRes.headers['set-cookie'] as unknown as
+      | string[]
+      | string
+      | undefined;
+    authCookies = Array.isArray(setCookie)
+      ? setCookie
+      : setCookie
+        ? [setCookie]
+        : [];
+    expect(authCookies.some((c) => c.startsWith('access_token='))).toBe(true);
   });
 
   afterAll(async () => {
@@ -161,7 +161,7 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
 
     const res = await api(httpServer)
       .post('/api/v1/jobtrack/with-reminder')
-      .set('Authorization', `Bearer ${authToken}`)
+      .set('Cookie', authCookies)
       .send(payload);
     expect(res.status).toBe(201);
     const created = res.body as unknown as JobTrackWithReminderResponseDto;
@@ -186,7 +186,7 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
   it('should list user jobtracks', async () => {
     const res = await api(httpServer)
       .get('/api/v1/jobtrack')
-      .set('Authorization', `Bearer ${authToken}`);
+      .set('Cookie', authCookies);
     expect(res.status).toBe(200);
     const list: JobTrackResponseDto[] = res.body as JobTrackResponseDto[];
     expect(Array.isArray(list)).toBe(true);
@@ -196,7 +196,7 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
   it('should get jobtracks by status', async () => {
     const res = await api(httpServer)
       .get(`/api/v1/jobtrack/status/${JobStatus.APPLIED}`)
-      .set('Authorization', `Bearer ${authToken}`);
+      .set('Cookie', authCookies);
     expect(res.status).toBe(200);
     const list: JobTrackResponseDto[] = res.body as JobTrackResponseDto[];
     expect(list.every((j) => j.status === JobStatus.APPLIED)).toBe(true);
@@ -205,75 +205,42 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
   it('should get jobtrack by id', async () => {
     const res = await api(httpServer)
       .get(`/api/v1/jobtrack/${createdJobTrack.id}`)
-      .set('Authorization', `Bearer ${authToken}`);
+      .set('Cookie', authCookies);
     expect(res.status).toBe(200);
     const jt: JobTrackResponseDto = res.body as JobTrackResponseDto;
     expect(jt.id).toBe(createdJobTrack.id);
   });
 
-  it('should update jobtrack', async () => {
-    const update: UpdateJobTrackDto = {
+  it('should update the jobtrack and its reminder in a single with-reminder PUT', async () => {
+    const next = new Date();
+    next.setDate(next.getDate() + 2);
+    // L'annonce et son rappel se mettent à jour ensemble : il n'existe pas de
+    // contrôleur `reminder` autonome, tout passe par l'endpoint with-reminder.
+    const update: UpdateJobTrackDto & UpdateReminderDto = {
       title: 'Développeur Backend Node.js Senior',
       notes: 'Relancé par email',
       status: JobStatus.INTERVIEW,
-    };
-
-    const res = await api(httpServer)
-      .put(`/api/v1/jobtrack/${createdJobTrack.id}`)
-      .set('Authorization', `Bearer ${authToken}`)
-      .send(update);
-    expect(res.status).toBe(200);
-    const jt: JobTrackResponseDto = res.body as JobTrackResponseDto;
-    expect(jt.title).toBe(update.title);
-    expect(jt.status).toBe(update.status);
-  });
-
-  it('should list reminders for the jobtrack', async () => {
-    const res = await api(httpServer)
-      .get(`/api/v1/reminder/jobtrack/${createdJobTrack.id}`)
-      .set('Authorization', `Bearer ${authToken}`);
-    expect(res.status).toBe(200);
-    const list: ReminderResponseDto[] = res.body as ReminderResponseDto[];
-    expect(list.find((r) => r.id === createdReminder.id)).toBeTruthy();
-  });
-
-  it('should update reminder', async () => {
-    const next = new Date();
-    next.setDate(next.getDate() + 2);
-    const update: UpdateReminderDto = {
       frequency: 10,
       nextReminderAt: next.toISOString(),
       isActive: true,
     };
+
     const res = await api(httpServer)
-      .put(`/api/v1/reminder/${createdReminder.id}`)
-      .set('Authorization', `Bearer ${authToken}`)
+      .put(`/api/v1/jobtrack/${createdJobTrack.id}/with-reminder`)
+      .set('Cookie', authCookies)
       .send(update);
     expect(res.status).toBe(200);
-    const r: ReminderResponseDto = res.body as ReminderResponseDto;
-    expect(r.frequency).toBe(update.frequency);
-  });
-
-  it('should mark reminder as sent', async () => {
-    const res = await api(httpServer)
-      .put(`/api/v1/reminder/${createdReminder.id}/mark-sent`)
-      .set('Authorization', `Bearer ${authToken}`);
-    expect(res.status).toBe(200);
-    const r: ReminderResponseDto = res.body as ReminderResponseDto;
-    expect(r.lastSentAt).toBeTruthy();
-  });
-
-  it('should delete reminder', async () => {
-    const res = await api(httpServer)
-      .delete(`/api/v1/reminder/${createdReminder.id}`)
-      .set('Authorization', `Bearer ${authToken}`);
-    expect(res.status).toBe(200);
+    const updated = res.body as unknown as JobTrackWithReminderResponseDto;
+    expect(updated.title).toBe(update.title);
+    expect(updated.status).toBe(update.status);
+    expect(updated.reminder).toBeDefined();
+    expect(updated.reminder.frequency).toBe(update.frequency);
   });
 
   it('should delete jobtrack', async () => {
     const res = await api(httpServer)
       .delete(`/api/v1/jobtrack/${createdJobTrack.id}`)
-      .set('Authorization', `Bearer ${authToken}`);
+      .set('Cookie', authCookies);
     expect(res.status).toBe(200);
   });
 });
