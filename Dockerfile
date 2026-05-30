@@ -11,9 +11,6 @@ RUN pnpm install --frozen-lockfile
 # Copier le reste du code
 COPY . .
 
-# Génération du client Prisma
-RUN pnpm prisma generate
-
 # Construction du projet NestJS
 RUN pnpm build
 
@@ -27,14 +24,16 @@ RUN corepack enable
 # Copier les fichiers de dépendances
 COPY --chown=node:node package.json pnpm-lock.yaml ./
 
-# Installer les dépendances de prod + prisma CLI (avec engines autorisées via onlyBuiltDependencies)
-RUN pnpm install --frozen-lockfile --prod && pnpm add -D prisma @prisma/engines
+# Dépendances de prod uniquement (drizzle-kit + drizzle-orm sont déclarés en
+# dependencies pour permettre `drizzle-kit migrate` au boot, sans muter le manifest).
+RUN pnpm install --frozen-lockfile --prod
 
-# Copier le schema Prisma et les migrations (pour prisma migrate deploy)
-COPY --chown=node:node --from=builder /app/prisma ./prisma
-COPY --chown=node:node --from=builder /app/prisma.config.ts ./prisma.config.ts
+# Copier les migrations Drizzle, la config et le schéma (requis par drizzle-kit migrate)
+COPY --chown=node:node --from=builder /app/drizzle ./drizzle
+COPY --chown=node:node --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+COPY --chown=node:node --from=builder /app/src/db/schema.ts ./src/db/schema.ts
 
-# Copier le build depuis le stage précédent (inclut le client Prisma compilé dans dist/generated/)
+# Copier le build depuis le stage précédent
 COPY --chown=node:node --from=builder /app/dist ./dist
 
 USER node
@@ -44,4 +43,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/api/v1/health').then(r=>{if(!r.ok)throw r.status})"
 
-CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/main.js"]
+# Migration baseline idempotente (no-op si la base est déjà au schéma courant) puis démarrage.
+CMD ["sh", "-c", "pnpm drizzle-kit migrate && node dist/main.js"]

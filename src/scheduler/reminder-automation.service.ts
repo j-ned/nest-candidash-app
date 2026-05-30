@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../prisma/prisma.service';
+import { and, eq, lte, asc, notInArray } from 'drizzle-orm';
+import { DrizzleService } from '../db/drizzle.service';
+import { reminders, jobTracks, users } from '../db/schema';
 import { MailService, ReminderEmailData } from '../mail/mail.service';
 
 /**
@@ -15,7 +17,7 @@ export class ReminderAutomationService {
   private readonly logger = new Logger(ReminderAutomationService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly drizzle: DrizzleService,
     private readonly mailService: MailService,
   ) {}
 
@@ -84,30 +86,68 @@ export class ReminderAutomationService {
 
   private async findDueReminders(): Promise<ReminderWithJobTrackAndUser[]> {
     const now = new Date();
-    return this.prisma.reminder.findMany({
-      where: {
-        isActive: true,
-        nextReminderAt: { lte: now },
-        jobtrack: {
-          status: { notIn: ['ACCEPTED', 'REJECTED'] },
-        },
+    // Le filtre porte sur une colonne de la table liée (jobtrack.status),
+    // donc on utilise le query builder avec jointures.
+    const rows = await this.drizzle.db
+      .select({
+        id: reminders.id,
+        jobTrackId: reminders.jobTrackId,
+        frequency: reminders.frequency,
+        nextReminderAt: reminders.nextReminderAt,
+        lastSentAt: reminders.lastSentAt,
+        isActive: reminders.isActive,
+        createdAt: reminders.createdAt,
+        updatedAt: reminders.updatedAt,
+        jt_id: jobTracks.id,
+        jt_userId: jobTracks.userId,
+        jt_title: jobTracks.title,
+        jt_company: jobTracks.company,
+        jt_jobUrl: jobTracks.jobUrl,
+        jt_appliedAt: jobTracks.appliedAt,
+        jt_status: jobTracks.status,
+        jt_notes: jobTracks.notes,
+        jt_createdAt: jobTracks.createdAt,
+        jt_updatedAt: jobTracks.updatedAt,
+        u_id: users.id,
+        u_email: users.email,
+        u_username: users.username,
+      })
+      .from(reminders)
+      .innerJoin(jobTracks, eq(reminders.jobTrackId, jobTracks.id))
+      .innerJoin(users, eq(jobTracks.userId, users.id))
+      .where(
+        and(
+          eq(reminders.isActive, true),
+          lte(reminders.nextReminderAt, now),
+          notInArray(jobTracks.status, ['ACCEPTED', 'REJECTED']),
+        ),
+      )
+      .orderBy(asc(reminders.nextReminderAt))
+      .limit(100);
+
+    return rows.map((r) => ({
+      id: r.id,
+      jobTrackId: r.jobTrackId,
+      frequency: r.frequency,
+      nextReminderAt: r.nextReminderAt,
+      lastSentAt: r.lastSentAt,
+      isActive: r.isActive,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      jobtrack: {
+        id: r.jt_id,
+        userId: r.jt_userId,
+        title: r.jt_title,
+        company: r.jt_company,
+        jobUrl: r.jt_jobUrl,
+        appliedAt: r.jt_appliedAt,
+        status: r.jt_status,
+        notes: r.jt_notes,
+        createdAt: r.jt_createdAt,
+        updatedAt: r.jt_updatedAt,
+        user: { id: r.u_id, email: r.u_email, username: r.u_username },
       },
-      include: {
-        jobtrack: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                username: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { nextReminderAt: 'asc' },
-      take: 100,
-    });
+    }));
   }
 
   private async processReminder(
@@ -158,14 +198,14 @@ export class ReminderAutomationService {
   }): Promise<void> {
     const next = new Date();
     next.setDate(next.getDate() + reminder.frequency);
-    await this.prisma.reminder.update({
-      where: { id: reminder.id },
-      data: {
+    await this.drizzle.db
+      .update(reminders)
+      .set({
         lastSentAt: new Date(),
         nextReminderAt: next,
         updatedAt: new Date(),
-      },
-    });
+      })
+      .where(eq(reminders.id, reminder.id));
   }
 }
 

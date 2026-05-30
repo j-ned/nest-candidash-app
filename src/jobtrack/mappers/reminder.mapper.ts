@@ -2,9 +2,9 @@ import { Reminder } from '../interfaces';
 
 export class ReminderMapper {
   /**
-   * Map Prisma Reminder to Service Reminder
+   * Map Drizzle Reminder row to Service Reminder
    */
-  static mapPrismaReminderToReminder(prismaReminder: {
+  static mapReminderToReminder(reminderRow: {
     id: string;
     jobTrackId: string;
     frequency: number;
@@ -15,14 +15,14 @@ export class ReminderMapper {
     updatedAt: Date;
   }): Reminder {
     return {
-      id: prismaReminder.id,
-      jobTrackId: prismaReminder.jobTrackId,
-      frequency: prismaReminder.frequency,
-      nextReminderAt: prismaReminder.nextReminderAt,
-      lastSentAt: prismaReminder.lastSentAt,
-      isActive: prismaReminder.isActive,
-      createdAt: prismaReminder.createdAt,
-      updatedAt: prismaReminder.updatedAt,
+      id: reminderRow.id,
+      jobTrackId: reminderRow.jobTrackId,
+      frequency: reminderRow.frequency,
+      nextReminderAt: reminderRow.nextReminderAt,
+      lastSentAt: reminderRow.lastSentAt,
+      isActive: reminderRow.isActive,
+      createdAt: reminderRow.createdAt,
+      updatedAt: reminderRow.updatedAt,
     };
   }
 }

@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { eq, lt } from 'drizzle-orm';
+import { DrizzleService } from '../../db/drizzle.service';
+import { verificationCodes } from '../../db/schema';
 import { EmailService } from './email.service';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class VerificationService {
   constructor(
-    private prisma: PrismaService,
+    private readonly drizzle: DrizzleService,
     private emailService: EmailService,
   ) {}
 
@@ -18,35 +20,29 @@ export class VerificationService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 10); // Code expire dans 10 minutes
 
-    await this.prisma.verificationCode.upsert({
-      where: { email },
-      update: {
-        code,
-        expiresAt,
-        attempts: 0,
-      },
-      create: {
-        email,
-        code,
-        expiresAt,
-        attempts: 0,
-      },
-    });
+    await this.drizzle.db
+      .insert(verificationCodes)
+      .values({ email, code, expiresAt, attempts: 0 })
+      .onConflictDoUpdate({
+        target: verificationCodes.email,
+        set: { code, expiresAt, attempts: 0, updatedAt: new Date() },
+      });
   }
 
   async verifyCode(email: string, code: string): Promise<boolean> {
-    const verification = await this.prisma.verificationCode.findUnique({
-      where: { email },
-    });
+    const verification =
+      await this.drizzle.db.query.verificationCodes.findFirst({
+        where: eq(verificationCodes.email, email),
+      });
 
     if (!verification) {
       return false;
     }
 
     if (new Date() > verification.expiresAt) {
-      await this.prisma.verificationCode.delete({
-        where: { email },
-      });
+      await this.drizzle.db
+        .delete(verificationCodes)
+        .where(eq(verificationCodes.email, email));
       return false;
     }
 
@@ -54,17 +50,15 @@ export class VerificationService {
       return false;
     }
 
-    await this.prisma.verificationCode.update({
-      where: { email },
-      data: {
-        attempts: verification.attempts + 1,
-      },
-    });
+    await this.drizzle.db
+      .update(verificationCodes)
+      .set({ attempts: verification.attempts + 1, updatedAt: new Date() })
+      .where(eq(verificationCodes.email, email));
 
     if (verification.code === code) {
-      await this.prisma.verificationCode.delete({
-        where: { email },
-      });
+      await this.drizzle.db
+        .delete(verificationCodes)
+        .where(eq(verificationCodes.email, email));
       return true;
     }
 
@@ -72,13 +66,9 @@ export class VerificationService {
   }
 
   async cleanupExpiredCodes(): Promise<void> {
-    await this.prisma.verificationCode.deleteMany({
-      where: {
-        expiresAt: {
-          lt: new Date(),
-        },
-      },
-    });
+    await this.drizzle.db
+      .delete(verificationCodes)
+      .where(lt(verificationCodes.expiresAt, new Date()));
   }
 
   async sendVerificationEmail(email: string, code: string): Promise<boolean> {
@@ -86,9 +76,10 @@ export class VerificationService {
   }
 
   async canResendCode(email: string): Promise<boolean> {
-    const verification = await this.prisma.verificationCode.findUnique({
-      where: { email },
-    });
+    const verification =
+      await this.drizzle.db.query.verificationCodes.findFirst({
+        where: eq(verificationCodes.email, email),
+      });
 
     if (!verification) {
       return true;

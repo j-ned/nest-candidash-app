@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Role } from '../../generated/prisma/enums.js';
+import { Role } from '../../db/schema';
 
 export class UserResponseDto {
   @ApiProperty({
@@ -50,27 +50,21 @@ export class UserResponseDto {
 
 export class AuthResponseDto {
   @ApiProperty({
-    description: "Jeton d'accès JWT",
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-  })
-  access_token: string;
-
-  @ApiProperty({
     description: "Informations de l'utilisateur authentifié",
     type: UserResponseDto,
   })
   user: UserResponseDto;
 
-  // Note: refresh_token est maintenant dans un cookie HttpOnly,
-  // pas dans la réponse JSON pour des raisons de sécurité
+  // Cookie-only : access_token ET refresh_token sont dans des cookies HttpOnly,
+  // jamais dans le body JSON (anti-vol XSS).
 }
 
 export class RefreshResponseDto {
   @ApiProperty({
-    description: "Nouveau jeton d'accès JWT",
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'Confirmation du renouvellement',
+    example: 'Jeton renouvelé',
   })
-  access_token: string;
+  message: string;
 
-  // Note: nouveau refresh_token est dans un cookie HttpOnly
+  // Cookie-only : les nouveaux tokens sont dans des cookies HttpOnly.
 }

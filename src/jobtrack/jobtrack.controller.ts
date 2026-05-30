@@ -7,10 +7,10 @@ import {
   Body,
   Param,
   UseGuards,
-  ValidationPipe,
   Request,
   Query,
   NotFoundException,
+  ParseEnumPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,7 +22,7 @@ import {
 import { JobTrackService } from './jobtrack.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { JobTrackResponseDto } from './dto/jobtrack-response.dto';
-import { JobStatus } from '../generated/prisma/enums.js';
+import { JobStatus } from '../db/schema';
 import { CreateJobTrackWithReminderDto } from './dto/create-jobtrack-with-reminder.dto';
 import { JobTrackWithReminderResponseDto } from './dto/jobtrack-with-reminder-response.dto';
 import { UpdateJobTrackWithReminderDto } from './dto/update-jobtrack-with-reminder.dto';
@@ -47,7 +47,7 @@ export class JobTrackController {
   )
   @UseGuards(JwtAuthGuard)
   async createJobTrackWithReminder(
-    @Body(ValidationPipe) body: CreateJobTrackWithReminderDto,
+    @Body() body: CreateJobTrackWithReminderDto,
     @Request() req: AuthenticatedUser,
   ): Promise<JobTrackWithReminderResponseDto> {
     const userId = req.user.sub;
@@ -90,7 +90,7 @@ export class JobTrackController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
   async getJobTracksByStatus(
-    @Param('status') status: JobStatus,
+    @Param('status', new ParseEnumPipe(JobStatus)) status: JobStatus,
     @Request() req: { user: { sub: string } },
   ) {
     const userId = req.user.sub;
@@ -142,7 +142,7 @@ export class JobTrackController {
   @UseGuards(JwtAuthGuard)
   async updateJobTrackWithReminder(
     @Param('id') id: string,
-    @Body(ValidationPipe) body: UpdateJobTrackWithReminderDto,
+    @Body() body: UpdateJobTrackWithReminderDto,
     @Request() req: { user: { sub: string } },
     @Query('upsert') upsert?: string,
   ): Promise<JobTrackWithReminderResponseDto> {

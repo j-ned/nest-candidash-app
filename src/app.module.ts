@@ -6,7 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { PrismaModule } from './prisma/prisma.module';
+import { DrizzleModule } from './db/drizzle.module';
 import { JobTrackModule } from './jobtrack/jobtrack.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 
@@ -24,7 +24,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
         },
       ],
     }),
-    PrismaModule,
+    DrizzleModule,
     UsersModule,
     AuthModule,
     JobTrackModule,
