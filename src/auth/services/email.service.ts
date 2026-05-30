@@ -10,11 +10,12 @@ export class EmailService {
   }
 
   private createTransporter() {
-    // Configuration avec les variables d'environnement existantes (OVH)
+    const port = parseInt(process.env.MAIL_PORT || '465');
     this.transporter = nodemailer.createTransport({
       host: process.env.MAIL_HOST,
-      port: parseInt(process.env.MAIL_PORT || '465'),
-      secure: true, // true pour le port 465, false pour les autres ports
+      port,
+      secure: port === 465, // 465 = TLS implicite ; 587 = STARTTLS (secure false)
+      requireTLS: port !== 465, // force STARTTLS sur 587, jamais en clair
       auth: {
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASSWORD,
