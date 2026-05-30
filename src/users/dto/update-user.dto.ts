@@ -1,7 +1,9 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
-import { roleEnum } from '../../db/schema';
 
+// Mise à jour de profil par l'utilisateur lui-même : le champ `role` est
+// volontairement absent (un USER ne peut pas s'auto-promouvoir ADMIN).
+// Un éventuel changement de rôle devra passer par un endpoint admin dédié.
 export class UpdateUserDto extends createZodDto(
   z
     .object({
@@ -16,9 +18,6 @@ export class UpdateUserDto extends createZodDto(
         .min(6, {
           message: 'Le mot de passe doit contenir au moins 6 caractères',
         })
-        .optional(),
-      role: z
-        .enum(roleEnum.enumValues, { message: 'Le rôle doit être USER ou ADMIN' })
         .optional(),
     })
     .strict(),

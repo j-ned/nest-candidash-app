@@ -5,11 +5,11 @@ import {
 } from '@nestjs/common';
 import { CanActivate } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import type { Request as ExpressRequest } from 'express';
 import { JwtPayload } from '../interfaces';
 
-interface RequestWithUser extends Request {
+interface RequestWithUser extends ExpressRequest {
   user?: JwtPayload;
-  cookies?: Record<string, string>;
 }
 
 @Injectable()
@@ -27,9 +27,9 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      request.user = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: process.env.JWT_SECRET || 'secret',
-      });
+      // Secret issu de la config globale JwtModule (getOrThrow JWT_SECRET) ;
+      // aucun fallback en dur, pour éviter toute forge de token.
+      request.user = await this.jwtService.verifyAsync<JwtPayload>(token);
     } catch {
       throw new UnauthorizedException("Jeton d'authentification invalide");
     }

@@ -13,6 +13,8 @@ export class StorageService {
   private readonly s3: S3Client;
 
   constructor(private readonly config: ConfigService) {
+    // Stockage compatible S3 — cible Cloudflare R2 (endpoint
+    // <account>.r2.cloudflarestorage.com, région "auto", bucket candidash-app).
     this.s3 = new S3Client({
       endpoint: this.config.getOrThrow<string>('S3_ENDPOINT'),
       region: this.config.getOrThrow<string>('S3_REGION'),
@@ -23,7 +25,8 @@ export class StorageService {
       forcePathStyle: true,
       requestHandler: {
         requestTimeout: 30_000,
-      } as never,
+        connectionTimeout: 5_000,
+      },
       maxAttempts: 3,
     });
   }

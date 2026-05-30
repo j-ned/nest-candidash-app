@@ -9,6 +9,10 @@ import {
   UseGuards,
   Request,
   ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+  Logger,
   Res,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -42,6 +46,8 @@ import {
 @ApiTags('Users')
 @Controller('accounts')
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
@@ -65,7 +71,7 @@ export class UsersController {
   async getUserById(@Param('id') id: string): Promise<UserSafe> {
     const user = await this.usersService.findOne(id);
     if (!user) {
-      throw new Error('Utilisateur introuvable');
+      throw new NotFoundException('Utilisateur introuvable');
     }
     return UserMapper.mapUserToSafe(user);
   }
@@ -88,9 +94,9 @@ export class UsersController {
         registrationDate: user.createdAt,
       });
     } catch (error) {
-      console.error(
-        "Erreur lors de l'envoi de l'email de confirmation:",
-        error,
+      this.logger.error(
+        "Erreur lors de l'envoi de l'email de confirmation",
+        error instanceof Error ? error.stack : String(error),
       );
     }
 
@@ -210,9 +216,9 @@ export class UsersController {
             resetUrl,
           });
         } catch (error) {
-          console.error(
-            "Erreur lors de l'envoi de l'email de réinitialisation:",
-            error,
+          this.logger.error(
+            "Erreur lors de l'envoi de l'email de réinitialisation",
+            error instanceof Error ? error.stack : String(error),
           );
         }
       }
@@ -233,7 +239,7 @@ export class UsersController {
     );
 
     if (!success) {
-      throw new Error('Token invalide ou expiré');
+      throw new BadRequestException('Token invalide ou expiré');
     }
 
     return UserMapper.createPasswordResetResponse();
@@ -258,7 +264,7 @@ export class UsersController {
     );
 
     if (!success) {
-      throw new Error('Mot de passe actuel incorrect');
+      throw new UnauthorizedException('Mot de passe actuel incorrect');
     }
 
     // Send confirmation email (non-blocking)
@@ -272,9 +278,9 @@ export class UsersController {
         });
       }
     } catch (error) {
-      console.error(
-        "Erreur lors de l'envoi de l'email de confirmation de changement de mot de passe:",
-        error,
+      this.logger.error(
+        "Erreur lors de l'envoi de l'email de confirmation de changement de mot de passe",
+        error instanceof Error ? error.stack : String(error),
       );
     }
 

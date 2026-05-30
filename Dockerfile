@@ -24,8 +24,9 @@ RUN corepack enable
 # Copier les fichiers de dépendances
 COPY --chown=node:node package.json pnpm-lock.yaml ./
 
-# Installer les dépendances de prod + drizzle-kit (pour `drizzle-kit migrate` au boot)
-RUN pnpm install --frozen-lockfile --prod && pnpm add -D drizzle-kit drizzle-orm
+# Dépendances de prod uniquement (drizzle-kit + drizzle-orm sont déclarés en
+# dependencies pour permettre `drizzle-kit migrate` au boot, sans muter le manifest).
+RUN pnpm install --frozen-lockfile --prod
 
 # Copier les migrations Drizzle, la config et le schéma (requis par drizzle-kit migrate)
 COPY --chown=node:node --from=builder /app/drizzle ./drizzle
