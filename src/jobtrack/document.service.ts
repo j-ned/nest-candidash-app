@@ -23,10 +23,10 @@ export class DocumentService {
     private readonly config: ConfigService,
   ) {}
 
-  private getBucket(type: DocumentType): string {
-    return type === 'cv'
-      ? this.config.getOrThrow<string>('S3_BUCKET_CV')
-      : this.config.getOrThrow<string>('S3_BUCKET_LM');
+  // Bucket unique Cloudflare R2 (candidash-app) ; CV et LM sont distingués par
+  // le préfixe de clé (`<userId>/<jobTrackId>/cv.pdf` vs `.../lm.pdf`).
+  private getBucket(): string {
+    return this.config.getOrThrow<string>('S3_BUCKET');
   }
 
   private getS3Key(
@@ -80,7 +80,7 @@ export class DocumentService {
     await this.verifyOwnership(jobTrackId, userId);
     this.validateFile(file);
 
-    const bucket = this.getBucket(type);
+    const bucket = this.getBucket();
     const key = this.getS3Key(userId, jobTrackId, type);
 
     await this.storage.putObject(bucket, key, file.buffer, file.mimetype);
@@ -112,7 +112,7 @@ export class DocumentService {
       throw new NotFoundException('Aucun document trouvé');
     }
 
-    const bucket = this.getBucket(type);
+    const bucket = this.getBucket();
     const key = this.getS3Key(userId, jobTrackId, type);
 
     const { stream } = await this.storage.getObject(bucket, key);
@@ -142,7 +142,7 @@ export class DocumentService {
       throw new NotFoundException('Aucun document trouvé');
     }
 
-    const bucket = this.getBucket(type);
+    const bucket = this.getBucket();
     const key = this.getS3Key(userId, jobTrackId, type);
 
     await this.storage.deleteObject(bucket, key);

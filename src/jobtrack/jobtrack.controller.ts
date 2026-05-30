@@ -10,6 +10,7 @@ import {
   Request,
   Query,
   NotFoundException,
+  ParseEnumPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -89,7 +90,7 @@ export class JobTrackController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
   async getJobTracksByStatus(
-    @Param('status') status: JobStatus,
+    @Param('status', new ParseEnumPipe(JobStatus)) status: JobStatus,
     @Request() req: { user: { sub: string } },
   ) {
     const userId = req.user.sub;
