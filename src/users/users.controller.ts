@@ -106,10 +106,10 @@ export class UsersController {
       password: createUserDto.password,
     });
 
-    // Un utilisateur fraîchement créé par admin n'a pas de 2FA, on peut faire un narrowing
+    // Un utilisateur fraîchement créé n'a jamais de 2FA : ce cas n'arrive pas,
+    // on narrow simplement le type (cookie-only, pas de token dans le body).
     if ('requires2FA' in loginResult) {
       return {
-        access_token: '',
         user: {
           id: user.id,
           email: user.email,
@@ -140,7 +140,6 @@ export class UsersController {
     });
 
     return {
-      access_token: loginResult.access_token,
       user: loginResult.user,
     };
   }
