@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
+import { ZodValidationPipe } from 'nestjs-zod';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 
@@ -28,7 +29,7 @@ interface CreateUserDto {
 }
 
 // JobTrack
-import { JobStatus } from '../generated/prisma';
+import { JobStatus } from '../src/db/schema';
 
 interface CreateJobTrackDto {
   title: string;
@@ -78,13 +79,7 @@ interface JobTrackWithReminderResponseDto extends JobTrackResponseDto {
 
 // Helper to configure the app similarly to main.ts
 async function configureApp(app: INestApplication): Promise<void> {
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  app.useGlobalPipes(new ZodValidationPipe());
   app.setGlobalPrefix('api/v1');
   await app.init();
 }
@@ -131,7 +126,7 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
       };
       // user creation is public in UsersController
       const createUserRes = await api(httpServer)
-        .post('/api/v1/users')
+        .post('/api/v1/accounts/registration')
         .send(createUserBody);
       expect(createUserRes.status).toBeLessThan(400);
       // Retry login

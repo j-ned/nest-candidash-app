@@ -11,13 +11,11 @@ import { EmailService } from './services/email.service';
 import { TotpService } from './services/totp.service';
 import { TotpCryptoService } from './services/totp-crypto.service';
 import { UsersModule } from '../users/users.module';
-import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
     ConfigModule,
     forwardRef(() => UsersModule),
-    PrismaModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

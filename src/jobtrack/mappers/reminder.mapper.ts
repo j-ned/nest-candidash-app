@@ -2,9 +2,9 @@ import { Reminder } from '../interfaces';
 
 export class ReminderMapper {
   /**
-   * Map Prisma Reminder to Service Reminder
+   * Map Drizzle Reminder row to Service Reminder
    */
-  static mapPrismaReminderToReminder(prismaReminder: {
+  static mapReminderToReminder(prismaReminder: {
     id: string;
     jobTrackId: string;
     frequency: number;

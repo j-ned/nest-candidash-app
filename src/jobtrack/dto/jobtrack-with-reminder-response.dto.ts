@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ContractType, JobStatus } from '../../generated/prisma/enums.js';
+import { ContractType, JobStatus } from '../../db/schema';
 
 /**
  * DTO de réponse combinée : Annonce (JobTrack) + Rappel (Reminder).

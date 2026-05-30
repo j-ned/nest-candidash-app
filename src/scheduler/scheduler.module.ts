@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
-import { PrismaModule } from '../prisma/prisma.module';
 import { MailModule } from '../mail/mail.module';
 import { ReminderAutomationService } from './reminder-automation.service';
 
@@ -14,7 +13,7 @@ import { ReminderAutomationService } from './reminder-automation.service';
  * continue grâce à ce module.
  */
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, MailModule],
+  imports: [ScheduleModule.forRoot(), MailModule],
   providers: [ReminderAutomationService],
 })
 export class SchedulerModule {}

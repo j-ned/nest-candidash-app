@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { JobStatus, ContractType } from '../../generated/prisma/enums.js';
+import { JobStatus, ContractType } from '../../db/schema';
 
 export class JobTrackResponseDto {
   @ApiProperty({

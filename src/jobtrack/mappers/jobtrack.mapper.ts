@@ -1,40 +1,35 @@
-import {
-  JobTrack as PrismaJobTrack,
-  Reminder as PrismaReminder,
-} from '../../generated/prisma/client.js';
+import { JobTrackRow, ReminderRow } from '../../db/schema';
 import { JobTrack } from '../interfaces';
 import { ReminderMapper } from './reminder.mapper';
 
-type PrismaJobTrackWithReminders = PrismaJobTrack & {
-  reminders?: PrismaReminder[];
+type JobTrackRowWithReminders = JobTrackRow & {
+  reminders?: ReminderRow[];
 };
 
 export class JobTrackMapper {
   /**
-   * Map Prisma JobTrack to Service JobTrack
+   * Map Drizzle JobTrack row to Service JobTrack
    */
-  static mapPrismaJobTrackToJobTrack(
-    prismaJobTrack: PrismaJobTrackWithReminders,
-  ): JobTrack {
-    const reminder = prismaJobTrack.reminders?.[0] ?? null;
+  static mapJobTrackToJobTrack(row: JobTrackRowWithReminders): JobTrack {
+    const reminder = row.reminders?.[0] ?? null;
 
     return {
-      id: prismaJobTrack.id,
-      userId: prismaJobTrack.userId,
-      title: prismaJobTrack.title,
-      company: prismaJobTrack.company ?? undefined,
-      jobUrl: prismaJobTrack.jobUrl ?? undefined,
-      appliedAt: prismaJobTrack.appliedAt ?? undefined,
-      status: prismaJobTrack.status,
-      contractType: prismaJobTrack.contractType ?? undefined,
-      notes: prismaJobTrack.notes ?? undefined,
-      cvFileName: prismaJobTrack.cvFileName ?? undefined,
-      lmFileName: prismaJobTrack.lmFileName ?? undefined,
+      id: row.id,
+      userId: row.userId,
+      title: row.title,
+      company: row.company ?? undefined,
+      jobUrl: row.jobUrl ?? undefined,
+      appliedAt: row.appliedAt ?? undefined,
+      status: row.status,
+      contractType: row.contractType ?? undefined,
+      notes: row.notes ?? undefined,
+      cvFileName: row.cvFileName ?? undefined,
+      lmFileName: row.lmFileName ?? undefined,
       reminder: reminder
-        ? ReminderMapper.mapPrismaReminderToReminder(reminder)
+        ? ReminderMapper.mapReminderToReminder(reminder)
         : null,
-      createdAt: prismaJobTrack.createdAt,
-      updatedAt: prismaJobTrack.updatedAt,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   }
 }
