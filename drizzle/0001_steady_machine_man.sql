@@ -1,3 +1,8 @@
+-- ATTENTION : ne pas utiliser 'TO_APPLY' en DDL/DML dans une migration tant
+-- qu'elle peut être appliquée dans le même batch transactionnel que celle-ci
+-- (drizzle-kit applique toutes les migrations en attente dans une seule
+-- transaction ; Postgres interdit d'utiliser une valeur d'enum tout juste
+-- ajoutée dans la même transaction).
 ALTER TYPE "JobStatus" ADD VALUE IF NOT EXISTS 'TO_APPLY' BEFORE 'APPLIED';--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "Jetons" (
 	"id" text PRIMARY KEY NOT NULL,
