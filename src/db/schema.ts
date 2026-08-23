@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto';
 // ---------- Enums (noms = types PG réels, confirmés par drizzle-kit pull) ----------
 export const roleEnum = pgEnum('Role', ['ADMIN', 'USER']);
 export const jobStatusEnum = pgEnum('JobStatus', [
+  'TO_APPLY',
   'APPLIED',
   'INTERVIEW',
   'REJECTED',
@@ -132,6 +133,31 @@ export const reminders = pgTable(
   ],
 );
 
+// ---------- Jetons d'API (ApiToken) — auth indépendante pour l'extension navigateur ----------
+export const apiTokens = pgTable(
+  'Jetons',
+  {
+    id: idCol(),
+    userId: text('userId').notNull(),
+    nomAffiche: text('nomAffiche').notNull(),
+    tokenHash: text('tokenHash').notNull(),
+    derniereUtilisation: ts('derniereUtilisation'),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+    revokedAt: ts('revokedAt'),
+  },
+  (t) => [
+    uniqueIndex('Jetons_tokenHash_key').on(t.tokenHash),
+    index('Jetons_userId_idx').on(t.userId),
+    foreignKey({
+      columns: [t.userId],
+      foreignColumns: [users.id],
+      name: 'Jetons_userId_fkey',
+    })
+      .onUpdate('cascade')
+      .onDelete('cascade'),
+  ],
+);
+
 // ---------- UserTracking (non utilisé en code, présent pour parité schéma) ----------
 export const userTracking = pgTable(
   'UserTracking',
@@ -193,6 +219,7 @@ export const pendingUsers = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   jobTracks: many(jobTracks),
   userTracking: many(userTracking),
+  apiTokens: many(apiTokens),
 }));
 
 export const jobTracksRelations = relations(jobTracks, ({ one, many }) => ({
@@ -211,12 +238,17 @@ export const userTrackingRelations = relations(userTracking, ({ one }) => ({
   user: one(users, { fields: [userTracking.userId], references: [users.id] }),
 }));
 
+export const apiTokensRelations = relations(apiTokens, ({ one }) => ({
+  user: one(users, { fields: [apiTokens.userId], references: [users.id] }),
+}));
+
 // ---------- Types inférés (remplacent les types Prisma) ----------
 export type UserRow = typeof users.$inferSelect;
 export type JobTrackRow = typeof jobTracks.$inferSelect;
 export type ReminderRow = typeof reminders.$inferSelect;
 export type PendingUserRow = typeof pendingUsers.$inferSelect;
 export type VerificationCodeRow = typeof verificationCodes.$inferSelect;
+export type ApiTokenRow = typeof apiTokens.$inferSelect;
 
 // Enums exposés à la fois comme type ET valeur runtime (parité avec les enums
 // Prisma générés : `JobStatus.APPLIED`, `enum: ContractType`, etc.).
@@ -228,6 +260,7 @@ export const Role = { ADMIN: 'ADMIN', USER: 'USER' } as const satisfies Record<
 
 export type JobStatus = (typeof jobStatusEnum.enumValues)[number];
 export const JobStatus = {
+  TO_APPLY: 'TO_APPLY',
   APPLIED: 'APPLIED',
   INTERVIEW: 'INTERVIEW',
   REJECTED: 'REJECTED',
