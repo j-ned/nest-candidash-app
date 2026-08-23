@@ -53,6 +53,7 @@ describe('JobTrack quick-add via API token (e2e)', () => {
   let httpServer: Parameters<typeof request>[0];
   let authCookies: string[];
   let apiToken: string;
+  let apiTokenId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -98,7 +99,9 @@ describe('JobTrack quick-add via API token (e2e)', () => {
       .post('/api/v1/api-tokens')
       .set('Cookie', authCookies)
       .send({ nomAffiche: 'quick-add e2e' });
-    apiToken = (tokenRes.body as ApiTokenCreatedResponseDto).token;
+    const created = tokenRes.body as ApiTokenCreatedResponseDto;
+    apiToken = created.token;
+    apiTokenId = created.id;
   });
 
   afterAll(async () => {
@@ -145,12 +148,8 @@ describe('JobTrack quick-add via API token (e2e)', () => {
   });
 
   it('should reject quick-add with a revoked token', async () => {
-    const listRes = await api(httpServer)
-      .get('/api/v1/api-tokens')
-      .set('Cookie', authCookies);
-    const tokenId = (listRes.body as { id: string }[])[0].id;
     await api(httpServer)
-      .delete(`/api/v1/api-tokens/${tokenId}`)
+      .delete(`/api/v1/api-tokens/${apiTokenId}`)
       .set('Cookie', authCookies);
 
     const res = await api(httpServer)
