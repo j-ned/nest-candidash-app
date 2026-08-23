@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { DrizzleModule } from './db/drizzle.module';
 import { JobTrackModule } from './jobtrack/jobtrack.module';
+import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     UsersModule,
     AuthModule,
     JobTrackModule,
+    ApiTokensModule,
     SchedulerModule,
   ],
   controllers: [AppController],
