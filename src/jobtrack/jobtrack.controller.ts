@@ -21,7 +21,9 @@ import {
 } from '@nestjs/swagger';
 import { JobTrackService } from './jobtrack.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
+import { ApiTokenGuard } from '../auth/guard/api-token.guard';
 import { JobTrackResponseDto } from './dto/jobtrack-response.dto';
+import { QuickAddJobTrackDto } from './dto/quick-add-jobtrack.dto';
 import { JobStatus } from '../db/schema';
 import { CreateJobTrackWithReminderDto } from './dto/create-jobtrack-with-reminder.dto';
 import { JobTrackWithReminderResponseDto } from './dto/jobtrack-with-reminder-response.dto';
@@ -56,6 +58,30 @@ export class JobTrackController {
       ...result.jobTrack,
       reminder: result.reminder,
     };
+  }
+
+  @Post('quick-add')
+  @ApiOperation({
+    summary: "Ajout rapide d'une annonce (extension navigateur)",
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Annonce créée avec le statut "Repérée"',
+    type: JobTrackResponseDto,
+  })
+  @UseGuards(ApiTokenGuard)
+  async quickAddJobTrack(
+    @Body() body: QuickAddJobTrackDto,
+    @Request() req: AuthenticatedUser,
+  ): Promise<JobTrackResponseDto> {
+    const userId = req.user.sub;
+    return this.jobTrackService.create(userId, {
+      title: body.title,
+      company: body.company,
+      jobUrl: body.jobUrl,
+      notes: body.notes,
+      status: JobStatus.TO_APPLY,
+    });
   }
 
   @Get()
