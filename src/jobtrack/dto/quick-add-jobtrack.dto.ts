@@ -6,14 +6,20 @@ export const quickAddJobTrackSchema = z
   .object({
     title: z
       .string({ message: 'Le titre doit être une chaîne de caractères' })
-      .min(1, { message: 'Le titre ne peut pas être vide' }),
+      .min(1, { message: 'Le titre ne peut pas être vide' })
+      .max(200, { message: 'Le titre ne peut pas dépasser 200 caractères' }),
     company: z
       .string({
-        message: 'Le nom de l\'entreprise doit être une chaîne de caractères',
+        message: "Le nom de l'entreprise doit être une chaîne de caractères",
+      })
+      .max(200, {
+        message: "Le nom de l'entreprise ne peut pas dépasser 200 caractères",
       })
       .optional(),
     jobUrl: z
-      .string({ message: 'L\'URL de l\'offre doit être une chaîne de caractères' })
+      .string({
+        message: "L'URL de l'offre doit être une chaîne de caractères",
+      })
       .optional(),
     notes: z
       .string({ message: 'Les notes doivent être une chaîne de caractères' })
