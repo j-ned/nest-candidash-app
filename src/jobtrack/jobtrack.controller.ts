@@ -75,11 +75,29 @@ export class JobTrackController {
     @Request() req: AuthenticatedUser,
   ): Promise<JobTrackResponseDto> {
     const userId = req.user.sub;
+    if (body.status === JobStatus.APPLIED) {
+      const now = new Date();
+      const result = await this.jobTrackService.createWithReminder(userId, {
+        title: body.title,
+        company: body.company,
+        jobUrl: body.jobUrl,
+        notes: body.notes,
+        contractType: body.contractType,
+        status: JobStatus.APPLIED,
+        appliedAt: now.toISOString(),
+        frequency: 7,
+        nextReminderAt: new Date(
+          now.getTime() + 7 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+      });
+      return result.jobTrack;
+    }
     return this.jobTrackService.create(userId, {
       title: body.title,
       company: body.company,
       jobUrl: body.jobUrl,
       notes: body.notes,
+      contractType: body.contractType,
       status: JobStatus.TO_APPLY,
     });
   }
