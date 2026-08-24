@@ -29,28 +29,17 @@ export class AuthService {
   async login(
     loginCredentials: LoginCredentials,
   ): Promise<AuthResult | TwoFactorPendingResponse> {
-    const user = await this.usersService.findByEmail(loginCredentials.email);
-    if (!user) {
-      throw new UnauthorizedException('Identifiants invalides');
-    }
+    const result = await this.authenticateCredentials(loginCredentials);
+    if ('requires2FA' in result) return result;
+    return this.generateFullAuthTokens(result);
+  }
 
-    const isPasswordValid = await this.usersService.validatePassword(
-      user,
-      loginCredentials.password,
-    );
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Identifiants invalides');
-    }
-
-    if (user.totpEnabled) {
-      const tempToken = await this.jwtService.signAsync(
-        { sub: user.id, type: '2fa-pending' },
-        { expiresIn: '5m' },
-      );
-      return AuthMapper.mapToTwoFactorPendingResponse(tempToken);
-    }
-
-    return this.generateFullAuthTokens(user);
+  async authenticateForApiToken(
+    loginCredentials: LoginCredentials,
+  ): Promise<UserSafe | TwoFactorPendingResponse> {
+    const result = await this.authenticateCredentials(loginCredentials);
+    if ('requires2FA' in result) return result;
+    return AuthMapper.mapUserToSafe(result);
   }
 
   async loginAfterRegistration(email: string): Promise<AuthResult> {
@@ -143,19 +132,16 @@ export class AuthService {
   }
 
   async validateTotp(tempToken: string, token: string): Promise<AuthResult> {
-    const decoded = await this.verifyTempToken(tempToken);
-
-    const user = await this.usersService.findOne(decoded.sub);
-    if (!user?.totpEnabled || !user.totpSecret) {
-      throw new UnauthorizedException('2FA non activée pour cet utilisateur');
-    }
-
-    const isValid = this.totpService.verifyToken(user.totpSecret, token);
-    if (!isValid) {
-      throw new UnauthorizedException('Code TOTP invalide');
-    }
-
+    const user = await this.verifyTotpCode(tempToken, token);
     return this.generateFullAuthTokens(user);
+  }
+
+  async verifyTotpForApiToken(
+    tempToken: string,
+    token: string,
+  ): Promise<UserSafe> {
+    const user = await this.verifyTotpCode(tempToken, token);
+    return AuthMapper.mapUserToSafe(user);
   }
 
   async useRecoveryCode(
@@ -245,5 +231,51 @@ export class AuthService {
     }
 
     return decoded;
+  }
+
+  private async authenticateCredentials(
+    loginCredentials: LoginCredentials,
+  ): Promise<User | TwoFactorPendingResponse> {
+    const user = await this.usersService.findByEmail(loginCredentials.email);
+    if (!user) {
+      throw new UnauthorizedException('Identifiants invalides');
+    }
+
+    const isPasswordValid = await this.usersService.validatePassword(
+      user,
+      loginCredentials.password,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Identifiants invalides');
+    }
+
+    if (user.totpEnabled) {
+      const tempToken = await this.jwtService.signAsync(
+        { sub: user.id, type: '2fa-pending' },
+        { expiresIn: '5m' },
+      );
+      return AuthMapper.mapToTwoFactorPendingResponse(tempToken);
+    }
+
+    return user;
+  }
+
+  private async verifyTotpCode(
+    tempToken: string,
+    token: string,
+  ): Promise<User> {
+    const decoded = await this.verifyTempToken(tempToken);
+
+    const user = await this.usersService.findOne(decoded.sub);
+    if (!user?.totpEnabled || !user.totpSecret) {
+      throw new UnauthorizedException('2FA non activée pour cet utilisateur');
+    }
+
+    const isValid = this.totpService.verifyToken(user.totpSecret, token);
+    if (!isValid) {
+      throw new UnauthorizedException('Code TOTP invalide');
+    }
+
+    return user;
   }
 }

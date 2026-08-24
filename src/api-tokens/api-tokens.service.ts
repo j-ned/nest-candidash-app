@@ -71,10 +71,10 @@ export class ApiTokensService {
     credentials: LoginCredentials,
     nomAffiche: string,
   ): Promise<ApiTokenLoginResult | TwoFactorPendingResponse> {
-    const result = await this.authService.login(credentials);
+    const result = await this.authService.authenticateForApiToken(credentials);
     if ('requires2FA' in result) return result;
-    const created = await this.create(result.user.id, nomAffiche);
-    return { ...created, user: { email: result.user.email } };
+    const created = await this.create(result.id, nomAffiche);
+    return { ...created, user: { email: result.email } };
   }
 
   async loginWithTotpAndCreate(
@@ -82,8 +82,11 @@ export class ApiTokensService {
     token: string,
     nomAffiche: string,
   ): Promise<ApiTokenLoginResult> {
-    const result = await this.authService.validateTotp(tempToken, token);
-    const created = await this.create(result.user.id, nomAffiche);
-    return { ...created, user: { email: result.user.email } };
+    const result = await this.authService.verifyTotpForApiToken(
+      tempToken,
+      token,
+    );
+    const created = await this.create(result.id, nomAffiche);
+    return { ...created, user: { email: result.email } };
   }
 }

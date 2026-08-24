@@ -490,25 +490,33 @@ export class MailService {
       ? `postulé le ${data.appliedAt.toLocaleDateString('fr-FR')}`
       : 'postulé récemment';
 
+    // data.jobTitle/company/jobUrl proviennent d'une saisie utilisateur (y
+    // compris via un jeton d'API bas-privilège, ex. l'extension navigateur)
+    // et finissent interpolés tels quels dans le HTML de cet email envoyé
+    // depuis l'identité SMTP de l'app : échappement obligatoire.
+    const safeJobTitle = this.escapeHtml(data.jobTitle);
+    const safeCompany = this.escapeHtml(data.company);
+    const safeJobUrl = data.jobUrl ? this.escapeHtml(data.jobUrl) : undefined;
+
     const mainContent = `
       <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
         <div style="display: flex; margin-bottom: 12px; align-items: center;">
           <span style="font-weight: 600; color: #1f2937; min-width: 100px; margin-right: 12px;">Poste :</span>
-          <span style="color: oklch(62.00% 0.087 171.94); font-weight: 600;">${data.jobTitle}</span>
+          <span style="color: oklch(62.00% 0.087 171.94); font-weight: 600;">${safeJobTitle}</span>
         </div>
         <div style="display: flex; margin-bottom: 12px; align-items: center;">
           <span style="font-weight: 600; color: #1f2937; min-width: 100px; margin-right: 12px;">Entreprise :</span>
-          <span style="color: oklch(62.00% 0.087 171.94); font-weight: 600;">${data.company}</span>
+          <span style="color: oklch(62.00% 0.087 171.94); font-weight: 600;">${safeCompany}</span>
         </div>
-        <div style="display: flex; margin-bottom: ${data.jobUrl ? '12px' : '0'}; align-items: center;">
+        <div style="display: flex; margin-bottom: ${safeJobUrl ? '12px' : '0'}; align-items: center;">
           <span style="font-weight: 600; color: #1f2937; min-width: 100px; margin-right: 12px;">Status :</span>
           <span style="color: oklch(62.00% 0.087 171.94); font-weight: 600;">${appliedDateText}</span>
         </div>
         ${
-          data.jobUrl
+          safeJobUrl
             ? `<div style="display: flex; margin-bottom: 0; align-items: center;">
           <span style="font-weight: 600; color: #1f2937; min-width: 100px; margin-right: 12px;">Annonce :</span>
-          <a href="${data.jobUrl}" target="_blank" rel="noreferrer" style="color: oklch(62.00% 0.087 171.94); font-weight: 600; text-decoration: underline;">Voir l'offre d'emploi</a>
+          <a href="${safeJobUrl}" target="_blank" rel="noreferrer" style="color: oklch(62.00% 0.087 171.94); font-weight: 600; text-decoration: underline;">Voir l'offre d'emploi</a>
         </div>`
             : ''
         }
@@ -541,8 +549,8 @@ export class MailService {
       greeting:
         'Il est temps de relancer votre candidature ! Voici un résumé de votre postulation :',
       mainContent,
-      ctaButton: data.jobUrl
-        ? { text: "Voir l'annonce", url: data.jobUrl }
+      ctaButton: safeJobUrl
+        ? { text: "Voir l'annonce", url: safeJobUrl }
         : { text: "💪 Restez proactif dans votre recherche d'emploi !" },
       footerMessage:
         'Cet email a été envoyé automatiquement par votre système de suivi des candidatures.',
@@ -801,5 +809,19 @@ Si vous n'êtes pas à l'origine de cette modification, veuillez réinitialiser 
 
 CandidashApp - Votre sécurité est notre priorité
     `;
+  }
+
+  /**
+   * Échappe les caractères HTML spéciaux pour neutraliser toute injection
+   * dans un template email généré à partir de données utilisateur (y
+   * compris texte et contexte d'attribut, ex. href="...").
+   */
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }
