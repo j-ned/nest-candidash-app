@@ -12,6 +12,7 @@ import { apiTokens } from '../../db/schema';
 
 interface RequestWithUser extends ExpressRequest {
   user?: { sub: string };
+  apiTokenId?: string;
 }
 
 @Injectable()
@@ -44,6 +45,7 @@ export class ApiTokenGuard implements CanActivate {
       .where(eq(apiTokens.id, row.id));
 
     request.user = { sub: row.userId };
+    request.apiTokenId = row.id;
     return true;
   }
 
