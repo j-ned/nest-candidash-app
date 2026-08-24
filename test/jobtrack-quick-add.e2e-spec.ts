@@ -139,12 +139,51 @@ describe('JobTrack quick-add via API token (e2e)', () => {
     expect(created.status).toBe(JobStatus.TO_APPLY);
   });
 
-  it('should reject quick-add payloads that try to set a status explicitly', async () => {
+  it('should reject a status outside TO_APPLY/APPLIED', async () => {
     const res = await api(httpServer)
       .post('/api/v1/jobtrack/quick-add')
       .set('Authorization', `Bearer ${apiToken}`)
-      .send({ title: 'Tentative de statut forcé', status: JobStatus.ACCEPTED });
+      .send({
+        title: 'Tentative de statut hors périmètre',
+        status: JobStatus.ACCEPTED,
+      });
     expect(res.status).toBe(400);
+  });
+
+  it('should create a job track with status APPLIED and a standard reminder', async () => {
+    const res = await api(httpServer)
+      .post('/api/v1/jobtrack/quick-add')
+      .set('Authorization', `Bearer ${apiToken}`)
+      .send({
+        title: 'Développeur Backend',
+        company: 'Reminder Corp',
+        status: JobStatus.APPLIED,
+        contractType: 'CDI',
+      });
+
+    expect(res.status).toBe(201);
+    const created = res.body as JobTrackResponseDto & { contractType?: string };
+    expect(created.status).toBe(JobStatus.APPLIED);
+    expect(created.contractType).toBe('CDI');
+
+    const listRes = await api(httpServer)
+      .get('/api/v1/jobtrack')
+      .set('Cookie', authCookies);
+    const withReminder = (
+      listRes.body as Array<{ id: string; reminder?: { frequency: number } }>
+    ).find((j) => j.id === created.id);
+    expect(withReminder?.reminder?.frequency).toBe(7);
+  });
+
+  it('should create a job track with default status TO_APPLY and no reminder when status is omitted', async () => {
+    const res = await api(httpServer)
+      .post('/api/v1/jobtrack/quick-add')
+      .set('Authorization', `Bearer ${apiToken}`)
+      .send({ title: 'Sans statut explicite' });
+
+    expect(res.status).toBe(201);
+    const created = res.body as JobTrackResponseDto;
+    expect(created.status).toBe(JobStatus.TO_APPLY);
   });
 
   it('should reject quick-add with a revoked token', async () => {

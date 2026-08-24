@@ -1,5 +1,6 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
+import { contractTypeEnum, JobStatus } from '../../db/schema';
 
 export const quickAddJobTrackSchema = z
   .object({
@@ -17,6 +18,17 @@ export const quickAddJobTrackSchema = z
     notes: z
       .string({ message: 'Les notes doivent être une chaîne de caractères' })
       .optional(),
+    contractType: z
+      .enum(contractTypeEnum.enumValues, {
+        message: 'Le type de contrat doit être un type de contrat valide',
+      })
+      .optional(),
+    status: z
+      .enum([JobStatus.TO_APPLY, JobStatus.APPLIED], {
+        message: 'Le statut doit être "Repérée" ou "Candidaturée"',
+      })
+      .optional()
+      .default(JobStatus.TO_APPLY),
   })
   .strict();
 
