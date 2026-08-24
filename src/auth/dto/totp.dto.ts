@@ -1,7 +1,7 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
-const totpToken = z
+export const totpToken = z
   .string()
   .length(6)
   .regex(/^\d{6}$/, {

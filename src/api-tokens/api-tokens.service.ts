@@ -1,16 +1,30 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomBytes, createHash } from 'node:crypto';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { DrizzleService } from '../db/drizzle.service';
 import { apiTokens } from '../db/schema';
 import { ApiToken, ApiTokenCreated } from './interfaces';
 import { ApiTokenMapper } from './mappers/api-token.mapper';
+import { AuthService } from '../auth/auth.service';
+import type {
+  LoginCredentials,
+  TwoFactorPendingResponse,
+} from '../auth/interfaces';
 
 const TOKEN_PREFIX = 'ctok_';
 
+export type ApiTokenLoginResult = ApiTokenCreated & { user: { email: string } };
+
 @Injectable()
 export class ApiTokensService {
-  constructor(private readonly drizzle: DrizzleService) {}
+  constructor(
+    private readonly drizzle: DrizzleService,
+    private readonly authService: AuthService,
+  ) {}
 
   async create(userId: string, nomAffiche: string): Promise<ApiTokenCreated> {
     const secret = TOKEN_PREFIX + randomBytes(32).toString('hex');
@@ -51,5 +65,25 @@ export class ApiTokensService {
       .update(apiTokens)
       .set({ revokedAt: new Date() })
       .where(eq(apiTokens.id, id));
+  }
+
+  async loginAndCreate(
+    credentials: LoginCredentials,
+    nomAffiche: string,
+  ): Promise<ApiTokenLoginResult | TwoFactorPendingResponse> {
+    const result = await this.authService.login(credentials);
+    if ('requires2FA' in result) return result;
+    const created = await this.create(result.user.id, nomAffiche);
+    return { ...created, user: { email: result.user.email } };
+  }
+
+  async loginWithTotpAndCreate(
+    tempToken: string,
+    token: string,
+    nomAffiche: string,
+  ): Promise<ApiTokenLoginResult> {
+    const result = await this.authService.validateTotp(tempToken, token);
+    const created = await this.create(result.user.id, nomAffiche);
+    return { ...created, user: { email: result.user.email } };
   }
 }
