@@ -90,6 +90,17 @@ async function bootstrap() {
     });
   }
 
+  // Arrêt propre. Sans cela, l'API ignorait SIGTERM : le noyau n'applique pas la disposition par
+  // défaut d'un signal au processus n° 1 d'un conteneur, et rien ne l'écoutait. Docker attendait
+  // 10 s puis envoyait SIGKILL (code 137) à chaque déploiement, coupant les requêtes en cours.
+  // `app.close()` ferme le serveur HTTP puis joue les hooks (dont DrizzleService.onModuleDestroy,
+  // qui rend les connexions Postgres) ; on sort ensuite nous-mêmes, sans compter sur le signal.
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(signal, () => {
+      void app.close().finally(() => process.exit(0));
+    });
+  }
+
   // Gestion d'erreur globale pour éviter les crashes
   process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
