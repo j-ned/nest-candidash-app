@@ -44,4 +44,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/api/v1/health').then(r=>{if(!r.ok)throw r.status})"
 
 # Migration baseline idempotente (no-op si la base est déjà au schéma courant) puis démarrage.
-CMD ["sh", "-c", "pnpm drizzle-kit migrate && node dist/main.js"]
+# `exec` : rend explicite que node devient le processus n° 1 et reçoit SIGTERM (le shell le fait
+# déjà par optimisation de dernière commande, mais on ne veut pas en dépendre).
+CMD ["sh", "-c", "pnpm drizzle-kit migrate && exec node dist/main.js"]
