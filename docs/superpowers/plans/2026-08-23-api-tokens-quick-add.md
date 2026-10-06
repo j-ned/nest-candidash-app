@@ -271,8 +271,8 @@ async function configureApp(app: INestApplication): Promise<void> {
   await app.init();
 }
 
-const TEST_EMAIL = 'contact@djoudj.dev';
-const TEST_PASSWORD = 'a4R!y5euSPf#8Vx4wRqMf6!B';
+const { email: TEST_EMAIL, password: TEST_PASSWORD } =
+  e2eCredentialsFromEnv('<label>');
 
 function api(server: Parameters<typeof request>[0]) {
   return request(server);
@@ -747,8 +747,8 @@ async function configureApp(app: INestApplication): Promise<void> {
   await app.init();
 }
 
-const TEST_EMAIL = 'contact@djoudj.dev';
-const TEST_PASSWORD = 'a4R!y5euSPf#8Vx4wRqMf6!B';
+const { email: TEST_EMAIL, password: TEST_PASSWORD } =
+  e2eCredentialsFromEnv('<label>');
 
 function api(server: Parameters<typeof request>[0]) {
   return request(server);

@@ -4,6 +4,7 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { e2eCredentialsFromEnv } from './e2e-credentials';
 
 interface LoginDto {
   email: string;
@@ -75,9 +76,8 @@ async function configureApp(app: INestApplication): Promise<void> {
   await app.init();
 }
 
-// Credentials provided by the user
-const TEST_EMAIL = 'contact@djoudj.dev';
-const TEST_PASSWORD = 'a4R!y5euSPf#8Vx4wRqMf6!B';
+const { email: TEST_EMAIL, password: TEST_PASSWORD } =
+  e2eCredentialsFromEnv('jobtrack-reminder');
 
 // Supertest helper with prefix
 function api(server: Parameters<typeof request>[0]) {
