@@ -113,8 +113,8 @@ describe('Extension login → API token (e2e)', () => {
   let app: INestApplication;
   let httpServer: Parameters<typeof request>[0];
 
-  const NO_2FA_EMAIL = 'contact@djoudj.dev';
-  const NO_2FA_PASSWORD = 'a4R!y5euSPf#8Vx4wRqMf6!B';
+  const { email: NO_2FA_EMAIL, password: NO_2FA_PASSWORD } =
+    e2eCredentialsFromEnv('ext-login');
   const TWOFA_EMAIL = 'ext-login-2fa-e2e@djoudj.dev';
   const TWOFA_PASSWORD = 'V9!kLp3qXz#7mWnR2t!Yc8Bd';
 
@@ -248,7 +248,7 @@ describe('Extension login → API token (e2e)', () => {
 });
 ```
 
-Note : le compte `ext-login-2fa-e2e@djoudj.dev` est dédié à ce fichier de test — jamais réutilisé ailleurs, pour ne jamais risquer d'activer la 2FA sur `contact@djoudj.dev` (qui casserait `api-tokens.e2e-spec.ts`/`jobtrack-quick-add.e2e-spec.ts`, lesquels font un login simple sans gérer `requires2FA`).
+Note : le compte `ext-login-2fa-e2e@djoudj.dev` est dédié à ce fichier de test — jamais réutilisé ailleurs, pour ne jamais risquer d'activer la 2FA sur le compte e2e sans 2FA (qui casserait `api-tokens.e2e-spec.ts`/`jobtrack-quick-add.e2e-spec.ts`, lesquels font un login simple sans gérer `requires2FA`).
 
 - [ ] **Step 2: Lancer les tests, constater l'échec (RED)**
 
@@ -509,7 +509,7 @@ Attendu : tous les tests passent. Si le test 2FA échoue sur un `expiresIn` dép
 ```bash
 pnpm test:e2e
 ```
-Attendu : tous les fichiers `.e2e-spec.ts` passent, y compris `api-tokens.e2e-spec.ts` et `jobtrack-quick-add.e2e-spec.ts` déjà existants (le compte `contact@djoudj.dev` ne doit jamais se retrouver avec la 2FA activée par erreur — vérifie que seul `ext-login-2fa-e2e@djoudj.dev` a la 2FA active si un test échoue de façon inattendue ailleurs).
+Attendu : tous les fichiers `.e2e-spec.ts` passent, y compris `api-tokens.e2e-spec.ts` et `jobtrack-quick-add.e2e-spec.ts` déjà existants (le compte e2e sans 2FA ne doit jamais se retrouver avec la 2FA activée par erreur — vérifie que seul `ext-login-2fa-e2e@djoudj.dev` a la 2FA active si un test échoue de façon inattendue ailleurs).
 
 - [ ] **Step 11: Commit**
 
