@@ -21,6 +21,7 @@ pnpm test:cov             # Tests with coverage
 pnpm test:e2e             # End-to-end tests
 pnpm drizzle-kit generate # Generate a migration from src/db/schema.ts
 pnpm drizzle-kit migrate  # Apply pending migrations
+pnpm db:seed:demo         # LOCAL only: demo account + 12 fictional applications (see .env.example, scripts/seed-demo.ts)
 ```
 
 Run a single test: `pnpm jest -- --testPathPattern=<pattern>`
