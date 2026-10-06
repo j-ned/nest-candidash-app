@@ -6,6 +6,10 @@ import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import * as OTPAuth from 'otpauth';
 import { AppModule } from '../src/app.module';
+import {
+  e2eCredentialsFromEnv,
+  generateE2eCredentials,
+} from './e2e-credentials';
 
 interface LoginDto {
   email: string;
@@ -82,8 +86,8 @@ describe('Extension login → API token (e2e)', () => {
   let httpServer: Parameters<typeof request>[0];
   let throttlerSpy: jest.SpyInstance<Promise<boolean>>;
 
-  const NO_2FA_EMAIL = 'contact@djoudj.dev';
-  const NO_2FA_PASSWORD = 'a4R!y5euSPf#8Vx4wRqMf6!B';
+  const { email: NO_2FA_EMAIL, password: NO_2FA_PASSWORD } =
+    e2eCredentialsFromEnv('ext-login');
   // Email généré à chaque exécution du process : une fois la 2FA activée
   // par ce fichier (dernière étape du beforeAll ci-dessous), une adresse
   // fixe redevient verrouillée pour le run suivant — POST /auth/login ne
@@ -93,8 +97,8 @@ describe('Extension login → API token (e2e)', () => {
   // sécurité correct, mais qui rendrait ce fichier non-idempotent d'un run
   // à l'autre sur une base persistante). Repartir d'un compte neuf à
   // chaque process élimine structurellement ce verrouillage.
-  const TWOFA_EMAIL = `ext-login-2fa-e2e-${Date.now()}@djoudj.dev`;
-  const TWOFA_PASSWORD = 'V9!kLp3qXz#7mWnR2t!Yc8Bd';
+  const { email: TWOFA_EMAIL, password: TWOFA_PASSWORD } =
+    generateE2eCredentials('ext-login-2fa');
 
   beforeAll(async () => {
     // ThrottlerGuard est enregistré globalement via APP_GUARD dans
