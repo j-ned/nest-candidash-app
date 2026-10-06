@@ -1,5 +1,9 @@
-import 'dotenv/config';
+import { existsSync } from 'node:fs';
 import { defineConfig } from 'drizzle-kit';
+
+// `.env` local uniquement : absent de l'image (variables injectées par Dokploy). Comme
+// `dotenv/config`, n'écrase pas une variable déjà définie, sans dépendre d'un paquet non déclaré.
+if (existsSync('.env')) process.loadEnvFile('.env');
 
 export default defineConfig({
   dialect: 'postgresql',
