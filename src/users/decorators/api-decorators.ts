@@ -18,16 +18,6 @@ export function ApiAuthenticatedUserOperation(summary: string) {
   return applyDecorators(ApiOperation({ summary }), ApiBearerAuth('JWT-auth'));
 }
 
-export function ApiUserListResponse() {
-  return applyDecorators(
-    ApiResponse({
-      status: 200,
-      description: 'Liste de tous les comptes utilisateurs',
-      type: [UserResponseDto],
-    }),
-  );
-}
-
 export function ApiUserResponse() {
   return applyDecorators(
     ApiResponse({

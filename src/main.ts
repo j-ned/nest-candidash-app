@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ZodValidationPipe, cleanupOpenApiDoc } from 'nestjs-zod';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
@@ -7,7 +8,11 @@ import compression from 'compression';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Un seul saut (Traefik) devant l'API : sans cela req.ip vaut l'IP du proxy pour tout le
+  // monde, et le throttling comme la mesure d'audience traitent tous les visiteurs comme un seul.
+  app.set('trust proxy', 1);
 
   // Helmet — headers de sécurité (X-Frame-Options, HSTS, etc.)
   app.use(helmet());
