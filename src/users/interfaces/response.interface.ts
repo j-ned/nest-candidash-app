@@ -9,7 +9,6 @@ export interface UserResponse {
   user: UserSafe;
 }
 
-
 export interface PasswordResetRequestResponse {
   message: string;
 }

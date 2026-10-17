@@ -13,7 +13,9 @@ export const createJobTrackSchema = z
       })
       .optional(),
     jobUrl: z
-      .string({ message: 'L’URL de l’offre doit être une chaîne de caractères' })
+      .string({
+        message: 'L’URL de l’offre doit être une chaîne de caractères',
+      })
       .optional(),
     appliedAt: z
       .string()

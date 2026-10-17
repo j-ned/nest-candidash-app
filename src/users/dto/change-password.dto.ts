@@ -11,8 +11,7 @@ export class ChangePasswordDto extends createZodDto(
         .min(1, { message: 'Le mot de passe actuel est requis' }),
       newPassword: z
         .string({
-          message:
-            'Le nouveau mot de passe doit être une chaîne de caractères',
+          message: 'Le nouveau mot de passe doit être une chaîne de caractères',
         })
         .min(8, {
           message:

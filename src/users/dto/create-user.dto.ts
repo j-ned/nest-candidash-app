@@ -13,7 +13,9 @@ export class CreateUserDto extends createZodDto(
         message: 'Le mot de passe doit contenir au moins 6 caractères',
       }),
       role: z
-        .enum(roleEnum.enumValues, { message: 'Le rôle doit être USER ou ADMIN' })
+        .enum(roleEnum.enumValues, {
+          message: 'Le rôle doit être USER ou ADMIN',
+        })
         .optional(),
     })
     .strict(),
