@@ -55,6 +55,22 @@ describe('AnalyticsService.track', () => {
     expect(row.path).toBe('/');
   });
 
+  it('names the source from the in-app browser when nothing else is known', async () => {
+    const { service, values } = setup();
+
+    await service.track(
+      { path: '/' },
+      {
+        ip: '203.0.113.7',
+        userAgent: `${FIREFOX} [LinkedInApp]/9.30.1`,
+        origin: 'https://candidash.example',
+      },
+    );
+
+    const [[row]] = values.mock.calls as [[Record<string, string | null>]];
+    expect(row.source).toBe('LinkedIn');
+  });
+
   it.each([
     ['a bot', '/features', 'Googlebot/2.1'],
     ['an admin page', '/admin', FIREFOX],
