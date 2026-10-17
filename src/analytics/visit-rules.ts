@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 
 const MAX_PATH_LENGTH = 200;
-const EXCLUDED_PREFIXES = ['/admin'];
+const EXCLUDED_PREFIXES = ['/admin', '/dashboard/admin'];
 const ID_SEGMENT =
   /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+)$/i;
 const BOT_UA =
