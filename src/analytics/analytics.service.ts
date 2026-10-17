@@ -18,6 +18,7 @@ import {
   toTrackedPath,
   toVisitorHash,
 } from './visit-rules';
+import { toVisitSource } from './visit-source';
 
 const TIME_ZONE = 'Europe/Paris';
 const TOP_LIMIT = 10;
@@ -49,6 +50,10 @@ export class AnalyticsService {
     const path = toTrackedPath(dto.path);
     if (!path) return;
 
+    const referrerHost = toReferrerHost(
+      dto.referrer,
+      this.hostOf(context.origin),
+    );
     try {
       await this.drizzle.db.insert(visits).values({
         visitorHash: toVisitorHash(
@@ -58,7 +63,8 @@ export class AnalyticsService {
           this.today(),
         ),
         path,
-        referrerHost: toReferrerHost(dto.referrer, this.hostOf(context.origin)),
+        referrerHost,
+        source: toVisitSource(dto.path, referrerHost),
       });
     } catch (error) {
       this.logger.warn(`Visite non enregistrée : ${String(error)}`);
@@ -89,13 +95,19 @@ export class AnalyticsService {
       WHERE ${day} >= ${since}
       GROUP BY path ORDER BY count DESC, path LIMIT ${TOP_LIMIT}`);
 
-    const topReferrers = await this.drizzle.db.execute<{
-      label: string;
+    // Une ligne par visiteur et par jour : sa première origine connue, sinon accès direct (null)
+    const topSources = await this.drizzle.db.execute<{
+      label: string | null;
       count: string;
     }>(sql`
-      SELECT "referrerHost" AS label, COUNT(DISTINCT "visitorHash") AS count FROM "Visites"
-      WHERE ${day} >= ${since} AND "referrerHost" IS NOT NULL
-      GROUP BY "referrerHost" ORDER BY count DESC, label LIMIT ${TOP_LIMIT}`);
+      WITH per_visit AS (
+        SELECT (array_agg(source ORDER BY "createdAt") FILTER (WHERE source IS NOT NULL))[1] AS source
+        FROM "Visites"
+        WHERE ${day} >= ${since}
+        GROUP BY "visitorHash", ${day}
+      )
+      SELECT source AS label, COUNT(*) AS count FROM per_visit
+      GROUP BY source ORDER BY count DESC, label NULLS LAST LIMIT ${TOP_LIMIT}`);
 
     const series: DailyVisits[] = daily.rows.map((row) => ({
       date: row.date,
@@ -111,7 +123,10 @@ export class AnalyticsService {
       pageviews: series.reduce((sum, d) => sum + d.pageviews, 0),
       daily: series,
       topPages: ranked(topPages.rows),
-      topReferrers: ranked(topReferrers.rows),
+      topSources: topSources.rows.map((row) => ({
+        label: row.label,
+        count: Number(row.count),
+      })),
     };
   }
 
