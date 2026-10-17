@@ -10,6 +10,7 @@ import { DrizzleModule } from './db/drizzle.module';
 import { JobTrackModule } from './jobtrack/jobtrack.module';
 import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     JobTrackModule,
     ApiTokensModule,
     SchedulerModule,
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [
