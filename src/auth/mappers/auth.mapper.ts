@@ -49,9 +49,7 @@ export class AuthMapper {
   /**
    * Réponse de refresh : token renouvelé via cookie HttpOnly, pas dans le body.
    */
-  static mapAuthResultToRefreshResponse(
-    _authResult: AuthResult,
-  ): RefreshResponse {
+  static toRefreshResponse(): RefreshResponse {
     return {
       message: 'Jeton renouvelé',
     };
