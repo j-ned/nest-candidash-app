@@ -11,6 +11,8 @@ import { JobTrackModule } from './jobtrack/jobtrack.module';
 import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { ContactModule } from './contact/contact.module';
+import { AdminModule } from './admin/admin.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { ContactModule } from './contact/contact.module';
     ApiTokensModule,
     SchedulerModule,
     ContactModule,
+    AdminModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

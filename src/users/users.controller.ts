@@ -32,7 +32,6 @@ import type { UserSafe } from './interfaces';
 import {
   ApiUserOperation,
   ApiAuthenticatedUserOperation,
-  ApiUserListResponse,
   ApiUserResponse,
   ApiRegistrationResponse,
   ApiUserUpdateResponse,
@@ -54,21 +53,18 @@ export class UsersController {
     private readonly authService: AuthService,
   ) {}
 
-  @Get('directory')
-  @ApiAuthenticatedUserOperation('Récupérer tous les comptes utilisateur')
-  @ApiUserListResponse()
-  @UseGuards(JwtAuthGuard)
-  async getUsers(): Promise<UserSafe[]> {
-    const users = await this.usersService.findAll();
-    return users.map((user) => UserMapper.mapUserToSafe(user));
-  }
-
   @Get('profile/:id')
   @ApiAuthenticatedUserOperation('Récupérer le profil utilisateur par ID')
   @ApiUserIdParam()
   @ApiUserResponse()
   @UseGuards(JwtAuthGuard)
-  async getUserById(@Param('id') id: string): Promise<UserSafe> {
+  async getUserById(
+    @Param('id') id: string,
+    @Request() req: { user: { sub: string } },
+  ): Promise<UserSafe> {
+    if (req.user.sub !== id) {
+      throw new ForbiddenException('Accès refusé à ce profil');
+    }
     const user = await this.usersService.findOne(id);
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable');
@@ -191,9 +187,7 @@ export class UsersController {
   @Post('forgot-password')
   @ApiUserOperation('Demander une réinitialisation de mot de passe')
   @ApiPasswordResetRequestResponse()
-  async forgotPassword(
-    @Body() forgotPasswordDto: ForgotPasswordDto,
-  ) {
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     const resetToken = await this.usersService.setPasswordResetToken(
       forgotPasswordDto.email,
     );
@@ -229,9 +223,7 @@ export class UsersController {
   @Post('reset-password')
   @ApiUserOperation('Réinitialiser le mot de passe avec un token')
   @ApiPasswordResetResponse()
-  async resetPassword(
-    @Body() resetPasswordDto: ResetPasswordDto,
-  ) {
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     const success = await this.usersService.resetPasswordWithToken(
       resetPasswordDto.token,
       resetPasswordDto.newPassword,
