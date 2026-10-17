@@ -9,6 +9,12 @@ export interface RankedEntry {
   count: number;
 }
 
+export interface SourceEntry {
+  /** null = accès direct ou origine masquée (applis, messageries, favoris). */
+  label: string | null;
+  count: number;
+}
+
 export interface AnalyticsStats {
   days: number;
   /** Somme des visiteurs uniques de chaque jour (l'identifiant change chaque jour). */
@@ -16,5 +22,6 @@ export interface AnalyticsStats {
   pageviews: number;
   daily: DailyVisits[];
   topPages: RankedEntry[];
-  topReferrers: RankedEntry[];
+  /** Visiteurs par origine (un visiteur compté une fois par jour). */
+  topSources: SourceEntry[];
 }
