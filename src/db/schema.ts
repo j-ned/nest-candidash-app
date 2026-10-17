@@ -209,6 +209,8 @@ export const visits = pgTable(
     visitorHash: text('visitorHash').notNull(),
     path: text('path').notNull(),
     referrerHost: text('referrerHost'),
+    // Origine lisible (tag utm_source/ref, sinon referrer connu) ; null = accès direct
+    source: text('source'),
     createdAt: ts('createdAt').notNull().defaultNow(),
   },
   (t) => [index('Visites_createdAt_idx').on(t.createdAt)],
