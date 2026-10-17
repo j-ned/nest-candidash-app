@@ -10,6 +10,7 @@ import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { User, UserCreateData, UserUpdateData } from './interfaces';
 import { UserMapper } from './mappers';
+import { hashPassword, verifyPassword } from './password-hashing';
 
 @Injectable()
 export class UsersService {
@@ -112,27 +113,18 @@ export class UsersService {
 
   async validatePassword(user: User, password: string): Promise<boolean> {
     if (!user.password) return false;
-    // Support legacy SHA256 hashes (migration) + bcrypt
-    if (
-      !user.password.startsWith('$2a$') &&
-      !user.password.startsWith('$2b$')
-    ) {
-      const sha256Hash = crypto
-        .createHash('sha256')
-        .update(password)
-        .digest('hex');
-      if (sha256Hash === user.password) {
-        // Migrate to bcrypt on successful login
-        const bcryptHash = await bcrypt.hash(password, 12);
-        await this.drizzle.db
-          .update(users)
-          .set({ password: bcryptHash, updatedAt: new Date() })
-          .where(eq(users.id, user.id));
-        return true;
-      }
-      return false;
+    const { valid, needsRehash } = await verifyPassword(
+      user.password,
+      password,
+    );
+    if (valid && needsRehash) {
+      // Migration progressive : l'ancien hachage (bcrypt, SHA-256) est remplacé à la connexion
+      await this.drizzle.db
+        .update(users)
+        .set({ password: await hashPassword(password), updatedAt: new Date() })
+        .where(eq(users.id, user.id));
     }
-    return bcrypt.compare(password, user.password);
+    return valid;
   }
 
   generatePasswordResetToken(): string {
@@ -315,7 +307,7 @@ export class UsersService {
       .where(eq(users.id, userId));
   }
 
-  async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 12);
+  hashPassword(password: string): Promise<string> {
+    return hashPassword(password);
   }
 }
