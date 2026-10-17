@@ -200,6 +200,20 @@ export const verificationCodes = pgTable(
   (t) => [uniqueIndex('CodesVerification_email_key').on(t.email)],
 );
 
+// ---------- Visites (mesure d'audience, sans IP ni cookie) ----------
+// visitorHash = HMAC(secret, ip|ua|jour) : change chaque jour, non réversible sans le secret.
+export const visits = pgTable(
+  'Visites',
+  {
+    id: idCol(),
+    visitorHash: text('visitorHash').notNull(),
+    path: text('path').notNull(),
+    referrerHost: text('referrerHost'),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+  },
+  (t) => [index('Visites_createdAt_idx').on(t.createdAt)],
+);
+
 // ---------- UtilisateursEnAttente (PendingUser) ----------
 export const pendingUsers = pgTable(
   'UtilisateursEnAttente',

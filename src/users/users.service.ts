@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, gte, desc } from 'drizzle-orm';
+import { and, eq, gte } from 'drizzle-orm';
 import { DrizzleService } from '../db/drizzle.service';
 import { users } from '../db/schema';
 import * as crypto from 'crypto';
@@ -37,14 +37,6 @@ export class UsersService {
       .returning();
 
     return UserMapper.mapUserRowToUser(row);
-  }
-
-  async findAll(): Promise<User[]> {
-    const rows = await this.drizzle.db.query.users.findMany({
-      orderBy: [desc(users.createdAt)],
-    });
-
-    return rows.map((u) => UserMapper.mapUserRowToUser(u));
   }
 
   async findOne(id: string): Promise<User | null> {
