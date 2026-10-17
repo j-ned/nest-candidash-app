@@ -64,7 +64,7 @@ export class AnalyticsService {
         ),
         path,
         referrerHost,
-        source: toVisitSource(dto.path, referrerHost),
+        source: toVisitSource(dto.path, referrerHost, context.userAgent),
       });
     } catch (error) {
       this.logger.warn(`Visite non enregistrée : ${String(error)}`);
