@@ -33,8 +33,26 @@ describe('AnalyticsService.track', () => {
     const [[row]] = values.mock.calls as [[Record<string, string | null>]];
     expect(row.path).toBe('/features');
     expect(row.referrerHost).toBe('www.google.com');
+    expect(row.source).toBe('Google');
     expect(row.visitorHash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(row)).not.toContain('203.0.113.7');
+  });
+
+  it('names the source from the utm tag of the landing page', async () => {
+    const { service, values } = setup();
+
+    await service.track(
+      { path: '/?utm_source=linkedin' },
+      {
+        ip: '203.0.113.7',
+        userAgent: FIREFOX,
+        origin: 'https://candidash.example',
+      },
+    );
+
+    const [[row]] = values.mock.calls as [[Record<string, string | null>]];
+    expect(row.source).toBe('LinkedIn');
+    expect(row.path).toBe('/');
   });
 
   it.each([
