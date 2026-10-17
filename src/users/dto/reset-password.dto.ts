@@ -8,7 +8,9 @@ export class ResetPasswordDto extends createZodDto(
         .string({ message: 'Le token doit être une chaîne de caractères' })
         .min(1, { message: 'Le token est requis' }),
       newPassword: z
-        .string({ message: 'Le mot de passe doit être une chaîne de caractères' })
+        .string({
+          message: 'Le mot de passe doit être une chaîne de caractères',
+        })
         .min(8, {
           message: 'Le mot de passe doit contenir au moins 8 caractères',
         })

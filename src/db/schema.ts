@@ -169,7 +169,9 @@ export const userTracking = pgTable(
     applicationsPerStatus: jsonb('applicationsPerStatus').notNull().default({}),
     lastActionAt: ts('lastActionAt'),
     responseRate: doublePrecision('responseRate').default(0),
-    remindersEffectiveness: doublePrecision('remindersEffectiveness').default(0),
+    remindersEffectiveness: doublePrecision('remindersEffectiveness').default(
+      0,
+    ),
     avgResponseTime: doublePrecision('avgResponseTime').default(0),
     createdAt: ts('createdAt').notNull().defaultNow(),
     updatedAt: updatedAtCol(),
