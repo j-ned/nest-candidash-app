@@ -30,6 +30,14 @@ export interface PasswordChangeEmailData {
   changeDate: Date;
 }
 
+export interface ContactMessageEmailData {
+  to: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}
+
 interface BaseEmailTemplateData {
   userName?: string;
   title: string;
@@ -66,6 +74,27 @@ export class MailService {
         checkServerIdentity: () => undefined,
       },
     });
+  }
+
+  // Plain text only: the body is visitor input, never interpolated into HTML
+  async sendContactMessage(data: ContactMessageEmailData): Promise<boolean> {
+    try {
+      await this.transporter.sendMail({
+        from: `${this.configService.get<string>('MAIL_FROM_NAME')} <${this.configService.get<string>('MAIL_FROM_ADDRESS')}>`,
+        to: data.to,
+        replyTo: { name: data.name, address: data.email },
+        subject: `[Candidash contact] ${data.subject}`,
+        text: `De : ${data.name} <${data.email}>\n\n${data.message}`,
+      });
+      this.logger.log('Message de contact transmis');
+      return true;
+    } catch (error) {
+      this.logger.error(
+        "Erreur lors de l'envoi du message de contact :",
+        error,
+      );
+      return false;
+    }
   }
 
   async sendRegistrationConfirmationEmail(
