@@ -19,6 +19,7 @@ import {
   JobTrackWithOptionalReminder,
 } from './interfaces';
 import { JobTrackMapper, ReminderMapper } from './mappers';
+import { normalizeJobUrl } from './normalize-job-url';
 
 @Injectable()
 export class JobTrackService {
@@ -55,6 +56,21 @@ export class JobTrackService {
       orderBy: [desc(jobTracks.createdAt)],
     });
     return rows.map((r) => JobTrackMapper.mapJobTrackToJobTrack(r));
+  }
+
+  /**
+   * Candidature déjà suivie pour cette offre (URL comparée sous forme canonique), sinon null.
+   * Le volume par utilisateur est faible : comparaison en mémoire plutôt qu'une colonne dédiée.
+   */
+  async findByJobUrl(userId: string, rawUrl: string): Promise<JobTrack | null> {
+    const target = normalizeJobUrl(rawUrl);
+    if (!target) return null;
+    const jobs = await this.findAllByUser(userId);
+    return (
+      jobs.find(
+        (job) => job.jobUrl && normalizeJobUrl(job.jobUrl) === target,
+      ) ?? null
+    );
   }
 
   /**
