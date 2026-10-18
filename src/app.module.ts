@@ -13,6 +13,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { ContactModule } from './contact/contact.module';
 import { AdminModule } from './admin/admin.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     ContactModule,
     AdminModule,
     AnalyticsModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [
