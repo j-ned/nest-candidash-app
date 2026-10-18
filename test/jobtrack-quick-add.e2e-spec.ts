@@ -187,6 +187,62 @@ describe('JobTrack quick-add via API token (e2e)', () => {
     expect(created.status).toBe(JobStatus.TO_APPLY);
   });
 
+  it('keeps the offer text sent by the extension on the detail, not in the list', async () => {
+    const offerText =
+      'Nous recherchons un développeur Angular 22 maîtrisant les signals et NestJS.';
+    const res = await api(httpServer)
+      .post('/api/v1/jobtrack/quick-add')
+      .set('Authorization', `Bearer ${apiToken}`)
+      .send({ title: 'Développeur Angular', offerText });
+    expect(res.status).toBe(201);
+    const { id } = res.body as JobTrackResponseDto;
+
+    const detail = await api(httpServer)
+      .get(`/api/v1/jobtrack/${id}`)
+      .set('Cookie', authCookies);
+    expect((detail.body as { offerText?: string }).offerText).toBe(offerText);
+
+    const list = await api(httpServer)
+      .get('/api/v1/jobtrack')
+      .set('Cookie', authCookies);
+    const listed = (
+      list.body as Array<{ id: string; offerText?: string }>
+    ).find((job) => job.id === id);
+    expect(listed).toBeDefined();
+    expect(listed?.offerText).toBeUndefined();
+  });
+
+  it('changes then clears the offer text pasted on the application', async () => {
+    const created = await api(httpServer)
+      .post('/api/v1/jobtrack/quick-add')
+      .set('Authorization', `Bearer ${apiToken}`)
+      .send({ title: 'Lead front' });
+    const { id } = created.body as JobTrackResponseDto;
+
+    const pasted = await api(httpServer)
+      .put(`/api/v1/jobtrack/${id}/with-reminder`)
+      .set('Cookie', authCookies)
+      .send({ offerText: 'Offre collée par l’utilisateur' });
+    expect(pasted.status).toBe(200);
+    expect((pasted.body as { offerText?: string }).offerText).toBe(
+      'Offre collée par l’utilisateur',
+    );
+
+    const cleared = await api(httpServer)
+      .put(`/api/v1/jobtrack/${id}/with-reminder`)
+      .set('Cookie', authCookies)
+      .send({ offerText: '' });
+    expect((cleared.body as { offerText?: string }).offerText).toBeUndefined();
+  });
+
+  it('refuses an offer text over 20 000 characters', async () => {
+    const res = await api(httpServer)
+      .post('/api/v1/jobtrack/quick-add')
+      .set('Authorization', `Bearer ${apiToken}`)
+      .send({ title: 'Offre trop longue', offerText: 'x'.repeat(20_001) });
+    expect(res.status).toBe(400);
+  });
+
   it('should reject quick-add with a revoked token', async () => {
     await api(httpServer)
       .delete(`/api/v1/api-tokens/${apiTokenId}`)

@@ -88,6 +88,8 @@ export const jobTracks = pgTable(
     status: jobStatusEnum('status').notNull().default('APPLIED'),
     contractType: contractTypeEnum('contractType'),
     notes: text('notes'),
+    // Texte de l'offre (extension ou collé par l'utilisateur) : matière de l'analyse des documents
+    offerText: text('offerText'),
     cvFileName: text('cvFileName'),
     lmFileName: text('lmFileName'),
     createdAt: ts('createdAt').notNull().defaultNow(),

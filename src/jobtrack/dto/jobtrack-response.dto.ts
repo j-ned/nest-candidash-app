@@ -67,6 +67,13 @@ export class JobTrackResponseDto {
   notes?: string;
 
   @ApiProperty({
+    description:
+      'Texte de l’offre (absent de la liste des candidatures, présent sur le détail)',
+    nullable: true,
+  })
+  offerText?: string;
+
+  @ApiProperty({
     description: 'Date de création du suivi de candidature',
     example: '2025-01-15T08:30:00.000Z',
   })

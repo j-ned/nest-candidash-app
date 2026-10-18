@@ -1,5 +1,6 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
+import { OFFER_TEXT_MAX } from './create-jobtrack.dto';
 import { contractTypeEnum, JobStatus } from '../../db/schema';
 
 export const quickAddJobTrackSchema = z
@@ -23,6 +24,14 @@ export const quickAddJobTrackSchema = z
       .optional(),
     notes: z
       .string({ message: 'Les notes doivent être une chaîne de caractères' })
+      .optional(),
+    offerText: z
+      .string({
+        message: 'Le texte de l’offre doit être une chaîne de caractères',
+      })
+      .max(OFFER_TEXT_MAX, {
+        message: 'Le texte de l’offre ne peut pas dépasser 20 000 caractères',
+      })
       .optional(),
     contractType: z
       .enum(contractTypeEnum.enumValues, {
