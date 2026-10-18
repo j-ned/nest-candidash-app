@@ -24,6 +24,7 @@ import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { ApiTokenGuard } from '../auth/guard/api-token.guard';
 import { JobTrackResponseDto } from './dto/jobtrack-response.dto';
 import { QuickAddJobTrackDto } from './dto/quick-add-jobtrack.dto';
+import { LookupJobTrackQueryDto } from './dto/lookup-jobtrack.dto';
 import { JobStatus } from '../db/schema';
 import { CreateJobTrackWithReminderDto } from './dto/create-jobtrack-with-reminder.dto';
 import { JobTrackWithReminderResponseDto } from './dto/jobtrack-with-reminder-response.dto';
@@ -100,6 +101,24 @@ export class JobTrackController {
       contractType: body.contractType,
       status: JobStatus.TO_APPLY,
     });
+  }
+
+  @Get('lookup')
+  @ApiOperation({
+    summary:
+      "Candidature déjà suivie pour l'URL d'une offre (extension navigateur)",
+  })
+  @UseGuards(ApiTokenGuard)
+  async lookupByUrl(
+    @Query() query: LookupJobTrackQueryDto,
+    @Request() req: AuthenticatedUser,
+  ): Promise<{ jobTrack: JobTrackResponseDto | null }> {
+    return {
+      jobTrack: await this.jobTrackService.findByJobUrl(
+        req.user.sub,
+        query.url,
+      ),
+    };
   }
 
   @Get()
