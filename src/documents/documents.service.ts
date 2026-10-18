@@ -41,9 +41,7 @@ export class DocumentsService {
       .from(documents)
       .where(eq(documents.userId, userId))
       .orderBy(desc(documents.updatedAt));
-    return rows.map(
-      ({ markdown: _markdown, userId: _userId, ...summary }) => summary,
-    );
+    return rows.map(toSummary);
   }
 
   async get(id: string, userId: string): Promise<DocumentDetail> {
