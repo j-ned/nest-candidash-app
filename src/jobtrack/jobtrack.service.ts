@@ -21,6 +21,8 @@ import {
 import { JobTrackMapper, ReminderMapper } from './mappers';
 import { normalizeJobUrl } from './normalize-job-url';
 
+const DEFAULT_REMINDER_FREQUENCY_DAYS = 7;
+
 @Injectable()
 export class JobTrackService {
   constructor(private readonly drizzle: DrizzleService) {}
@@ -380,6 +382,28 @@ export class JobTrackService {
             })
             .returning();
         }
+      }
+
+      // Passage à « Envoyée » sans réglage de relance (Kanban, fiche) : rappel à
+      // l'utilisateur de relancer l'entreprise, à sa fréquence ou à 7 jours.
+      const becomesApplied =
+        dto.status === 'APPLIED' && existing.status !== 'APPLIED';
+      if (becomesApplied && !hasReminderInput && !reminderEntity?.isActive) {
+        const frequency =
+          reminderEntity?.frequency ?? DEFAULT_REMINDER_FREQUENCY_DAYS;
+        const nextReminderAt = new Date(
+          Date.now() + frequency * 24 * 60 * 60 * 1000,
+        );
+        [reminderEntity] = reminderEntity
+          ? await tx
+              .update(reminders)
+              .set({ isActive: true, nextReminderAt, updatedAt: new Date() })
+              .where(eq(reminders.id, reminderEntity.id))
+              .returning()
+          : await tx
+              .insert(reminders)
+              .values({ jobTrackId: id, frequency, nextReminderAt })
+              .returning();
       }
 
       return {
