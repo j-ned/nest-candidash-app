@@ -325,6 +325,9 @@ S3_ACCESS_KEY=...
 S3_SECRET_KEY=...
 S3_BUCKET=candidash-documents
 
+# Export PDF (service Gotenberg interne, sinon l'export répond 503)
+GOTENBERG_URL=http://gotenberg:3000
+
 # Optionnel
 PORT=3000
 NODE_ENV=production

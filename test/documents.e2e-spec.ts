@@ -175,6 +175,42 @@ describe('Documents (e2e)', () => {
       .expect(404);
   });
 
+  it('exports the document as a PDF with selectable text', async () => {
+    const res = await request(server)
+      .get(`/api/v1/documents/${cv.id}/pdf`)
+      .set('Cookie', alice)
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk: Buffer) => chunks.push(chunk));
+        response.on('end', () => done(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect(res.headers['content-type']).toBe('application/pdf');
+    expect(res.headers['content-disposition']).toBe(
+      'attachment; filename="cv-angular.pdf"',
+    );
+    const pdf = res.body as Buffer;
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it("never exports another user's document", async () => {
+    await request(server)
+      .get(`/api/v1/documents/${cv.id}/pdf`)
+      .set('Cookie', bob)
+      .expect(404);
+  });
+
+  it('refuses to attach a document linked to no application', async () => {
+    const res = await request(server)
+      .post(`/api/v1/documents/${cv.id}/attach`)
+      .set('Cookie', alice)
+      .expect(400);
+    expect((res.body as { message: string }).message).toBe(
+      'Ce document n’est rattaché à aucune candidature',
+    );
+  });
+
   it('deletes a document', async () => {
     await request(server)
       .delete(`/api/v1/documents/${cv.id}`)

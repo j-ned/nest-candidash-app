@@ -77,21 +77,41 @@ export class DocumentService {
     type: DocumentType,
     file: Express.Multer.File,
   ): Promise<{ fileName: string }> {
-    await this.verifyOwnership(jobTrackId, userId);
     this.validateFile(file);
+    return this.storeDocument(
+      jobTrackId,
+      userId,
+      type,
+      file.buffer,
+      file.originalname,
+    );
+  }
+
+  /** Enregistre un PDF (envoyé ou généré) comme CV ou lettre de la candidature. */
+  async storeDocument(
+    jobTrackId: string,
+    userId: string,
+    type: DocumentType,
+    content: Buffer,
+    fileName: string,
+  ): Promise<{ fileName: string }> {
+    await this.verifyOwnership(jobTrackId, userId);
+    if (content.length > MAX_FILE_SIZE) {
+      throw new BadRequestException('Le fichier ne doit pas dépasser 5 Mo');
+    }
 
     const bucket = this.getBucket();
     const key = this.getS3Key(userId, jobTrackId, type);
 
-    await this.storage.putObject(bucket, key, file.buffer, file.mimetype);
+    await this.storage.putObject(bucket, key, content, 'application/pdf');
 
     const field = this.getFileNameField(type);
     await this.drizzle.db
       .update(jobTracks)
-      .set({ [field]: file.originalname, updatedAt: new Date() })
+      .set({ [field]: fileName, updatedAt: new Date() })
       .where(eq(jobTracks.id, jobTrackId));
 
-    return { fileName: file.originalname };
+    return { fileName };
   }
 
   async downloadDocument(
