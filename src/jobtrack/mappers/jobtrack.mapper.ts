@@ -23,6 +23,7 @@ export class JobTrackMapper {
       status: row.status,
       contractType: row.contractType ?? undefined,
       notes: row.notes ?? undefined,
+      offerText: row.offerText ?? undefined,
       cvFileName: row.cvFileName ?? undefined,
       lmFileName: row.lmFileName ?? undefined,
       reminder: reminder

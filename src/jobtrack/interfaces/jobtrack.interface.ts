@@ -11,6 +11,7 @@ export interface JobTrack {
   status: JobStatus;
   contractType?: ContractType;
   notes?: string;
+  offerText?: string;
   cvFileName?: string;
   lmFileName?: string;
   reminder?: Reminder | null;
@@ -26,6 +27,7 @@ export interface JobTrackCreateData {
   status?: JobStatus;
   contractType?: ContractType;
   notes?: string;
+  offerText?: string;
 }
 
 export interface JobTrackUpdateData {
@@ -36,4 +38,5 @@ export interface JobTrackUpdateData {
   status?: JobStatus;
   contractType?: ContractType;
   notes?: string;
+  offerText?: string;
 }
