@@ -9,6 +9,6 @@ import { StorageModule } from '../storage/storage.module';
   imports: [StorageModule],
   controllers: [JobTrackController, DocumentController],
   providers: [JobTrackService, DocumentService],
-  exports: [JobTrackService],
+  exports: [JobTrackService, DocumentService],
 })
 export class JobTrackModule {}

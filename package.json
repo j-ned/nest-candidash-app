@@ -44,6 +44,7 @@
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "helmet": "^8.1.0",
+    "marked": "18.0.14",
     "multer": "^2.0.2",
     "nestjs-zod": "^5.4.0",
     "node-fetch": "^2.7.0",
@@ -56,6 +57,7 @@
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sanitize-html": "2.18.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -75,6 +77,7 @@
     "@types/nodemailer": "^7.0.1",
     "@types/pg": "^8.16.0",
     "@types/qrcode": "^1.5.6",
+    "@types/sanitize-html": "2.16.1",
     "@types/supertest": "^6.0.2",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
@@ -100,12 +103,22 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "allowJs": true
+          }
+        }
+      ]
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "transformIgnorePatterns": [
+      "node_modules/(?!(\\.pnpm/)?(marked|htmlparser2|domhandler|domutils|dom-serializer|domelementtype|entities)[@/])"
+    ]
   }
 }
