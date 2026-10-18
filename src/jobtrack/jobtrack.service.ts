@@ -23,6 +23,11 @@ import { normalizeJobUrl } from './normalize-job-url';
 
 const DEFAULT_REMINDER_FREQUENCY_DAYS = 7;
 
+/** Un texte vide efface la valeur plutôt que d'enregistrer une chaîne vide. */
+function blankToNull(text: string | undefined): string | null {
+  return text?.trim() ? text : null;
+}
+
 @Injectable()
 export class JobTrackService {
   constructor(private readonly drizzle: DrizzleService) {}
@@ -42,6 +47,7 @@ export class JobTrackService {
         status: dto.status ?? 'APPLIED',
         contractType: dto.contractType,
         notes: dto.notes,
+        offerText: blankToNull(dto.offerText),
       })
       .returning();
 
@@ -57,7 +63,11 @@ export class JobTrackService {
       with: { reminders: true },
       orderBy: [desc(jobTracks.createdAt)],
     });
-    return rows.map((r) => JobTrackMapper.mapJobTrackToJobTrack(r));
+    // Le texte de l'offre (jusqu'à 20 000 caractères) reste sur le détail : liste légère
+    return rows.map((r) => ({
+      ...JobTrackMapper.mapJobTrackToJobTrack(r),
+      offerText: undefined,
+    }));
   }
 
   /**
@@ -126,6 +136,7 @@ export class JobTrackService {
             status: dto.status ?? 'APPLIED',
             contractType: dto.contractType,
             notes: dto.notes,
+            offerText: blankToNull(dto.offerText),
           })
           .returning();
         return JobTrackMapper.mapJobTrackToJobTrack(created);
@@ -148,6 +159,7 @@ export class JobTrackService {
       status: JobStatus;
       contractType: ContractType | null;
       notes: string | null;
+      offerText: string | null;
     }> = {};
 
     if (dto.title !== undefined) updateData.title = dto.title;
@@ -159,6 +171,8 @@ export class JobTrackService {
     if (dto.contractType !== undefined)
       updateData.contractType = dto.contractType;
     if (dto.notes !== undefined) updateData.notes = dto.notes;
+    if (dto.offerText !== undefined)
+      updateData.offerText = blankToNull(dto.offerText);
 
     const [updated] = await this.drizzle.db
       .update(jobTracks)
@@ -216,6 +230,7 @@ export class JobTrackService {
           status: dto.status ?? 'APPLIED',
           contractType: dto.contractType,
           notes: dto.notes,
+          offerText: blankToNull(dto.offerText),
         })
         .returning();
 
@@ -265,6 +280,7 @@ export class JobTrackService {
             status: dto.status ?? 'APPLIED',
             contractType: dto.contractType,
             notes: dto.notes,
+            offerText: blankToNull(dto.offerText),
           })
           .returning();
 
@@ -303,6 +319,7 @@ export class JobTrackService {
         status: JobStatus;
         contractType: ContractType | null;
         notes: string | null;
+        offerText: string | null;
       }> = {};
 
       if (dto.title !== undefined) updateData.title = dto.title;
@@ -314,6 +331,8 @@ export class JobTrackService {
       if (dto.contractType !== undefined)
         updateData.contractType = dto.contractType;
       if (dto.notes !== undefined) updateData.notes = dto.notes;
+      if (dto.offerText !== undefined)
+        updateData.offerText = blankToNull(dto.offerText);
 
       const updated = Object.keys(updateData).length
         ? (

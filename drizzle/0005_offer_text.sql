@@ -1,0 +1,1 @@
+ALTER TABLE "Annonces" ADD COLUMN "offerText" text;
