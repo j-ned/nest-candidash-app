@@ -8,8 +8,10 @@ import {
   Post,
   Put,
   Request,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/interfaces/request.interface';
@@ -23,12 +25,22 @@ import {
   DuplicateDocumentDto,
   UpdateDocumentDto,
 } from './dto/document.dto';
+import {
+  DocumentPdfService,
+  type AttachedPdf,
+} from './pdf/document-pdf.service';
+
+// Une génération mobilise Chromium quelques centaines de millisecondes : limite par utilisateur
+const PDF_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
 
 @ApiTags('documents')
 @Controller('documents')
 @UseGuards(JwtAuthGuard)
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(
+    private readonly documentsService: DocumentsService,
+    private readonly documentPdf: DocumentPdfService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -44,6 +56,35 @@ export class DocumentsController {
     @Request() req: AuthenticatedUser,
   ): Promise<DocumentDetail> {
     return this.documentsService.get(id, req.user.sub);
+  }
+
+  @Get(':id/pdf')
+  @Throttle(PDF_THROTTLE)
+  @ApiOperation({ summary: 'Export PDF du document (texte sélectionnable)' })
+  async pdf(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedUser,
+  ): Promise<StreamableFile> {
+    const { fileName, content } = await this.documentPdf.pdf(id, req.user.sub);
+    return new StreamableFile(content, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${fileName}"`,
+      length: content.length,
+    });
+  }
+
+  @Post(':id/attach')
+  @HttpCode(200)
+  @Throttle(PDF_THROTTLE)
+  @ApiOperation({
+    summary:
+      'Génère le PDF et le joint à la candidature visée (CV ou lettre de motivation)',
+  })
+  attach(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedUser,
+  ): Promise<AttachedPdf> {
+    return this.documentPdf.attach(id, req.user.sub);
   }
 
   @Post()
