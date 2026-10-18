@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import { ZodValidationPipe } from 'nestjs-zod';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
+import { randomUUID } from 'node:crypto';
 import { AppModule } from '../src/app.module';
 import { e2eCredentialsFromEnv } from './e2e-credentials';
 
@@ -235,6 +236,88 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
     expect(updated.status).toBe(update.status);
     expect(updated.reminder).toBeDefined();
     expect(updated.reminder.frequency).toBe(update.frequency);
+  });
+
+  describe('passage au statut « Envoyée » sans réglage de relance', () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    async function putStatus(
+      id: string,
+      body: Record<string, unknown>,
+      upsert = false,
+    ): Promise<JobTrackWithReminderResponseDto> {
+      const res = await api(httpServer)
+        .put(`/api/v1/jobtrack/${id}/with-reminder?upsert=${upsert}`)
+        .set('Cookie', authCookies)
+        .send(body);
+      expect(res.status).toBe(200);
+      return res.body as unknown as JobTrackWithReminderResponseDto;
+    }
+
+    async function spotted(): Promise<string> {
+      const id = randomUUID();
+      const created = await putStatus(
+        id,
+        { title: 'Offre repérée', status: JobStatus.TO_APPLY },
+        true,
+      );
+      expect(created.reminder).toBeUndefined();
+      return id;
+    }
+
+    it('programme un rappel à 7 jours pour relancer', async () => {
+      const id = await spotted();
+      const before = Date.now();
+
+      const moved = await putStatus(id, { status: JobStatus.APPLIED });
+
+      expect(moved.reminder.isActive).toBe(true);
+      expect(moved.reminder.frequency).toBe(7);
+      const nextAt = new Date(moved.reminder.nextReminderAt).getTime();
+      expect(nextAt).toBeGreaterThanOrEqual(before + 7 * DAY_MS - 1000);
+      expect(nextAt).toBeLessThanOrEqual(Date.now() + 7 * DAY_MS + 1000);
+    });
+
+    it('ne reprogramme pas un rappel déjà actif', async () => {
+      const id = await spotted();
+      const first = await putStatus(id, { status: JobStatus.APPLIED });
+
+      const again = await putStatus(id, {
+        title: 'Offre renommée',
+        status: JobStatus.APPLIED,
+      });
+
+      expect(again.reminder.id).toBe(first.reminder.id);
+      expect(again.reminder.nextReminderAt).toBe(first.reminder.nextReminderAt);
+    });
+
+    it('réactive le rappel coupé par un refus, avec sa fréquence', async () => {
+      const id = await spotted();
+      await putStatus(id, {
+        status: JobStatus.APPLIED,
+        frequency: 14,
+        nextReminderAt: new Date(Date.now() + 14 * DAY_MS).toISOString(),
+      });
+      const rejected = await putStatus(id, { status: JobStatus.REJECTED });
+      expect(rejected.reminder.isActive).toBe(false);
+
+      const back = await putStatus(id, { status: JobStatus.APPLIED });
+
+      expect(back.reminder.id).toBe(rejected.reminder.id);
+      expect(back.reminder.isActive).toBe(true);
+      expect(back.reminder.frequency).toBe(14);
+    });
+
+    it('respecte un rappel explicitement désactivé', async () => {
+      const id = await spotted();
+
+      const moved = await putStatus(id, {
+        status: JobStatus.APPLIED,
+        isActive: false,
+      });
+
+      expect(moved.reminder).toBeUndefined();
+    });
   });
 
   it('should delete jobtrack', async () => {
