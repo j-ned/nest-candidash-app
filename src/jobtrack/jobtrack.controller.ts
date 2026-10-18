@@ -83,6 +83,7 @@ export class JobTrackController {
         company: body.company,
         jobUrl: body.jobUrl,
         notes: body.notes,
+        offerText: body.offerText,
         contractType: body.contractType,
         status: JobStatus.APPLIED,
         appliedAt: now.toISOString(),
@@ -98,6 +99,7 @@ export class JobTrackController {
       company: body.company,
       jobUrl: body.jobUrl,
       notes: body.notes,
+      offerText: body.offerText,
       contractType: body.contractType,
       status: JobStatus.TO_APPLY,
     });
