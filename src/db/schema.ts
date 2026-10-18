@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto';
 
 // ---------- Enums (noms = types PG réels, confirmés par drizzle-kit pull) ----------
 export const roleEnum = pgEnum('Role', ['ADMIN', 'USER']);
+export const documentKindEnum = pgEnum('DocumentKind', ['CV', 'LETTER']);
 export const jobStatusEnum = pgEnum('JobStatus', [
   'TO_APPLY',
   'APPLIED',
@@ -202,6 +203,41 @@ export const verificationCodes = pgTable(
   (t) => [uniqueIndex('CodesVerification_email_key').on(t.email)],
 );
 
+// ---------- Documents (CV et lettres rédigés en Markdown) ----------
+// Une déclinaison (baseDocumentId) est une copie indépendante de son document de base.
+export const documents = pgTable(
+  'Documents',
+  {
+    id: idCol(),
+    userId: text('userId').notNull(),
+    kind: documentKindEnum('kind').notNull(),
+    title: text('title').notNull(),
+    markdown: text('markdown').notNull().default(''),
+    template: text('template').notNull().default('sobre'),
+    baseDocumentId: text('baseDocumentId'),
+    jobTrackId: text('jobTrackId'),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+    updatedAt: updatedAtCol(),
+  },
+  (t) => [
+    index('Documents_userId_idx').on(t.userId),
+    foreignKey({
+      columns: [t.userId],
+      foreignColumns: [users.id],
+      name: 'Documents_userId_fkey',
+    })
+      .onUpdate('cascade')
+      .onDelete('cascade'),
+    foreignKey({
+      columns: [t.jobTrackId],
+      foreignColumns: [jobTracks.id],
+      name: 'Documents_jobTrackId_fkey',
+    })
+      .onUpdate('cascade')
+      .onDelete('set null'),
+  ],
+);
+
 // ---------- Visites (mesure d'audience, sans IP ni cookie) ----------
 // visitorHash = HMAC(secret, ip|ua|jour) : change chaque jour, non réversible sans le secret.
 export const visits = pgTable(
@@ -267,6 +303,8 @@ export type ReminderRow = typeof reminders.$inferSelect;
 export type PendingUserRow = typeof pendingUsers.$inferSelect;
 export type VerificationCodeRow = typeof verificationCodes.$inferSelect;
 export type ApiTokenRow = typeof apiTokens.$inferSelect;
+export type DocumentRow = typeof documents.$inferSelect;
+export type DocumentKind = (typeof documentKindEnum.enumValues)[number];
 
 // Enums exposés à la fois comme type ET valeur runtime (parité avec les enums
 // Prisma générés : `JobStatus.APPLIED`, `enum: ContractType`, etc.).
