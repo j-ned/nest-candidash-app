@@ -53,6 +53,8 @@ async function bootstrap() {
       'Accept',
       'X-Requested-With',
     ],
+    // Nom du fichier des exports PDF, lu par le front pour le téléchargement
+    exposedHeaders: ['Content-Disposition'],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
