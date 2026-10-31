@@ -46,9 +46,7 @@ function api(server: Parameters<typeof request>[0]) {
 
 function extractCookies(res: request.Response): string[] {
   const setCookie = res.headers['set-cookie'] as unknown as
-    | string[]
-    | string
-    | undefined;
+    string[] | string | undefined;
   return Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
 }
 
@@ -75,14 +73,12 @@ async function ensureUser(
   }
   expect(loginRes.status).toBe(200);
   const setCookie = loginRes.headers['set-cookie'] as unknown as
-    | string[]
-    | string
-    | undefined;
+    string[] | string | undefined;
   return Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
 }
 
 describe('Extension login → API token (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<Parameters<typeof request>[0]>;
   let httpServer: Parameters<typeof request>[0];
   let throttlerSpy: jest.SpyInstance<Promise<boolean>>;
 
@@ -120,9 +116,7 @@ describe('Extension login → API token (e2e)', () => {
     }).compile();
     app = moduleFixture.createNestApplication();
     await configureApp(app);
-    httpServer = app.getHttpServer() as unknown as Parameters<
-      typeof request
-    >[0];
+    httpServer = app.getHttpServer();
   });
 
   afterAll(async () => {
@@ -397,10 +391,12 @@ describe('Extension login → API token (e2e) — rate limiting', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-    const throttledApp = moduleFixture.createNestApplication();
+    const throttledApp =
+      moduleFixture.createNestApplication<
+        INestApplication<Parameters<typeof request>[0]>
+      >();
     await configureApp(throttledApp);
-    const throttledServer =
-      throttledApp.getHttpServer() as unknown as Parameters<typeof request>[0];
+    const throttledServer = throttledApp.getHttpServer();
 
     try {
       const credentials = {

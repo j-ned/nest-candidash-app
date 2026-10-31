@@ -50,7 +50,7 @@ function api(server: Parameters<typeof request>[0]) {
 }
 
 describe('JobTrack quick-add via API token (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<Parameters<typeof request>[0]>;
   let httpServer: Parameters<typeof request>[0];
   let authCookies: string[];
   let apiToken: string;
@@ -63,9 +63,7 @@ describe('JobTrack quick-add via API token (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await configureApp(app);
-    httpServer = app.getHttpServer() as unknown as Parameters<
-      typeof request
-    >[0];
+    httpServer = app.getHttpServer();
 
     const loginBody: LoginDto = { email: TEST_EMAIL, password: TEST_PASSWORD };
     let loginRes = await api(httpServer)
@@ -87,9 +85,7 @@ describe('JobTrack quick-add via API token (e2e)', () => {
     }
     expect(loginRes.status).toBe(200);
     const setCookie = loginRes.headers['set-cookie'] as unknown as
-      | string[]
-      | string
-      | undefined;
+      string[] | string | undefined;
     authCookies = Array.isArray(setCookie)
       ? setCookie
       : setCookie

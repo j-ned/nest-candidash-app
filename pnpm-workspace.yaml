@@ -1,8 +1,11 @@
+# drizzle-orm déclare en peer optionnelles tous ses drivers (prisma, mysql2…) :
+# sans ceci pnpm les installe, jusque dans l'image de prod.
+autoInstallPeers: false
+# Délai de 14 jours avant d'adopter une version publiée (attaques supply chain).
+minimumReleaseAge: 20160
 ignoredBuiltDependencies:
   - '@nestjs/core'
-  - '@prisma/engines'
   - '@scarf/scarf'
   - '@swc/core'
   - esbuild
-  - prisma
   - unrs-resolver

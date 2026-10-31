@@ -37,7 +37,7 @@ async function signUpAndLogin(
 }
 
 describe('Documents (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<Parameters<typeof request>[0]>;
   let server: Server;
   let alice: string[];
   let bob: string[];
@@ -52,7 +52,7 @@ describe('Documents (e2e)', () => {
     app.useGlobalPipes(new ZodValidationPipe());
     app.setGlobalPrefix('api/v1');
     await app.init();
-    server = app.getHttpServer() as unknown as Server;
+    server = app.getHttpServer();
     alice = await signUpAndLogin(server, 'docs-alice');
     bob = await signUpAndLogin(server, 'docs-bob');
   });

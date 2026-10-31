@@ -5,7 +5,7 @@ WORKDIR /app
 RUN corepack enable
 
 # Installer les dépendances
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # Copier le reste du code
@@ -22,7 +22,7 @@ WORKDIR /app
 RUN corepack enable
 
 # Copier les fichiers de dépendances
-COPY --chown=node:node package.json pnpm-lock.yaml ./
+COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Dépendances de prod uniquement (drizzle-kit + drizzle-orm sont déclarés en
 # dependencies pour permettre `drizzle-kit migrate` au boot, sans muter le manifest).
