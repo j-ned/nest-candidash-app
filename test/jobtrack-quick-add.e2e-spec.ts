@@ -4,18 +4,12 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { e2eCredentialsFromEnv } from './e2e-credentials';
+import { createE2eUser, e2eCredentialsFromEnv } from './e2e-credentials';
 import { JobStatus } from '../src/db/schema';
 
 interface LoginDto {
   email: string;
   password: string;
-}
-
-interface CreateUserDto {
-  email: string;
-  password: string;
-  username?: string;
 }
 
 interface ApiTokenCreatedResponseDto {
@@ -70,15 +64,11 @@ describe('JobTrack quick-add via API token (e2e)', () => {
       .post('/api/v1/auth/login')
       .send(loginBody);
     if (loginRes.status === 401) {
-      const createUserBody: CreateUserDto = {
+      await createE2eUser(app, {
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
         username: 'e2e-user',
-      };
-      const createUserRes = await api(httpServer)
-        .post('/api/v1/accounts/registration')
-        .send(createUserBody);
-      expect(createUserRes.status).toBeLessThan(400);
+      });
       loginRes = await api(httpServer)
         .post('/api/v1/auth/login')
         .send(loginBody);

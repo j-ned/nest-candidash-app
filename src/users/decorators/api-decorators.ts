@@ -5,10 +5,7 @@ import {
   ApiBearerAuth,
   ApiParam,
 } from '@nestjs/swagger';
-import {
-  UserResponseDto,
-  AuthResponseDto,
-} from '../../auth/dto/auth-response.dto';
+import { UserResponseDto } from '../../auth/dto/auth-response.dto';
 
 export function ApiUserOperation(summary: string) {
   return applyDecorators(ApiOperation({ summary }));
@@ -26,18 +23,6 @@ export function ApiUserResponse() {
       type: UserResponseDto,
     }),
     ApiResponse({ status: 404, description: 'Utilisateur introuvable' }),
-  );
-}
-
-export function ApiRegistrationResponse() {
-  return applyDecorators(
-    ApiResponse({
-      status: 201,
-      description: 'Compte utilisateur créé et connecté avec succès',
-      type: AuthResponseDto,
-    }),
-    ApiResponse({ status: 400, description: "Données d'entrée invalides" }),
-    ApiResponse({ status: 409, description: "L'utilisateur existe déjà" }),
   );
 }
 

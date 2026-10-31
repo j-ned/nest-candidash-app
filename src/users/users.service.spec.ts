@@ -98,3 +98,46 @@ describe('UsersService refresh token', () => {
     expect(stored()).not.toContain(prefix);
   });
 });
+
+describe('UsersService password reset', () => {
+  function setup(row?: { id: string }) {
+    const where = jest.fn().mockResolvedValue(undefined);
+    const set = jest
+      .fn<{ where: jest.Mock }, [Record<string, unknown>]>()
+      .mockReturnValue({ where });
+    const update = jest.fn().mockReturnValue({ set });
+    const findFirst = jest.fn().mockResolvedValue(row);
+    const service = new UsersService({
+      db: { update, query: { users: { findFirst } } },
+    } as unknown as DrizzleService);
+    jest.spyOn(service, 'findByEmail').mockResolvedValue({ id: 'u1' } as User);
+    return { service, set, findFirst };
+  }
+
+  it('stores only a hash of the reset token', async () => {
+    const { service, set } = setup();
+
+    const token = await service.setPasswordResetToken('a@b.fr');
+
+    const stored = set.mock.calls[0][0].resetPasswordToken;
+    expect(token).toBeTruthy();
+    expect(stored).not.toBe(token);
+    expect(stored).toHaveLength(64);
+  });
+
+  it('revokes refresh and extension tokens after a reset', async () => {
+    const { service, set } = setup({ id: 'u1' });
+
+    await expect(
+      service.resetPasswordWithToken('jeton', 'nouveau-mdp'),
+    ).resolves.toBe(true);
+
+    const updates = set.mock.calls.map((call) => call[0]);
+    expect(updates).toContainEqual(
+      expect.objectContaining({ refreshToken: null }),
+    );
+    expect(updates).toContainEqual(
+      expect.objectContaining({ revokedAt: expect.any(Date) as Date }),
+    );
+  });
+});

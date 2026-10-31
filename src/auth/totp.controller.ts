@@ -8,6 +8,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Response as ExpressResponse } from 'express';
 import { AuthService } from './auth.service';
 import {
@@ -56,6 +57,7 @@ export class TotpController {
   }
 
   @Post('validate')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(200)
   async validate(
     @Body() dto: ValidateTotpDto,
@@ -87,6 +89,7 @@ export class TotpController {
   }
 
   @Post('recovery')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(200)
   async recovery(
     @Body() dto: TotpRecoveryDto,

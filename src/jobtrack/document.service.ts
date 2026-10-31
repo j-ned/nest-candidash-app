@@ -13,7 +13,8 @@ import { Readable } from 'stream';
 
 export type DocumentType = 'cv' | 'lm';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
+export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
+const PDF_MAGIC = Buffer.from('%PDF-');
 
 @Injectable()
 export class DocumentService {
@@ -62,7 +63,11 @@ export class DocumentService {
   }
 
   validateFile(file: Express.Multer.File): void {
-    if (file.mimetype !== 'application/pdf') {
+    // Le type MIME est déclaré par le client : on vérifie aussi la signature.
+    const isPdf =
+      file.mimetype === 'application/pdf' &&
+      file.buffer?.subarray(0, PDF_MAGIC.length).equals(PDF_MAGIC);
+    if (!isPdf) {
       throw new BadRequestException('Seuls les fichiers PDF sont acceptés');
     }
 

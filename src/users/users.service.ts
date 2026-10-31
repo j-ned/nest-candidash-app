@@ -3,13 +3,19 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, gte } from 'drizzle-orm';
+import { and, eq, gte, isNull } from 'drizzle-orm';
 import { DrizzleService } from '../db/drizzle.service';
-import { users } from '../db/schema';
+import { apiTokens, users } from '../db/schema';
 import * as crypto from 'crypto';
 import { User, UserCreateData, UserUpdateData } from './interfaces';
 import { UserMapper } from './mappers';
 import { hashPassword, verifyPassword } from './password-hashing';
+
+// Hachage rapide pour des jetons aléatoires à forte entropie (refresh JWT,
+// token de reset) : bcrypt n'apporte rien ici et tronque à 72 octets.
+function sha256(value: string): string {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
 
 @Injectable()
 export class UsersService {
@@ -143,7 +149,7 @@ export class UsersService {
     await this.drizzle.db
       .update(users)
       .set({
-        resetPasswordToken: resetToken,
+        resetPasswordToken: sha256(resetToken),
         resetPasswordExpires: resetExpires,
         updatedAt: new Date(),
       })
@@ -158,7 +164,7 @@ export class UsersService {
   ): Promise<boolean> {
     const row = await this.drizzle.db.query.users.findFirst({
       where: and(
-        eq(users.resetPasswordToken, token),
+        eq(users.resetPasswordToken, sha256(token)),
         gte(users.resetPasswordExpires, new Date()),
       ),
     });
@@ -178,6 +184,7 @@ export class UsersService {
         updatedAt: new Date(),
       })
       .where(eq(users.id, row.id));
+    await this.revokeSessions(row.id);
 
     return true;
   }
@@ -202,6 +209,7 @@ export class UsersService {
       .update(users)
       .set({ password: hashedPassword, updatedAt: new Date() })
       .where(eq(users.id, userId));
+    await this.revokeSessions(userId);
 
     return true;
   }
@@ -211,7 +219,7 @@ export class UsersService {
     refreshToken: string,
     expiresAt: Date,
   ): Promise<void> {
-    const hashedRefreshToken = this.hashRefreshToken(refreshToken);
+    const hashedRefreshToken = sha256(refreshToken);
 
     await this.drizzle.db
       .update(users)
@@ -241,19 +249,21 @@ export class UsersService {
     }
 
     const expected = Buffer.from(row.refreshToken);
-    const actual = Buffer.from(this.hashRefreshToken(refreshToken));
+    const actual = Buffer.from(sha256(refreshToken));
     return (
       expected.length === actual.length &&
       crypto.timingSafeEqual(expected, actual)
     );
   }
 
-  // SHA-256 et non bcrypt : bcrypt tronque à 72 octets, or ceux d'un refresh
-  // JWT sont identiques pour tous les jetons d'un utilisateur (en-tête + sub),
-  // ce qui rendait n'importe quel ancien jeton valide. Le JWT est déjà
-  // aléatoire et signé : un hachage rapide suffit.
-  private hashRefreshToken(refreshToken: string): string {
-    return crypto.createHash('sha256').update(refreshToken).digest('hex');
+  // Après un changement ou une réinitialisation du mot de passe, toute session
+  // ouverte avec l'ancien (refresh token, jetons de l'extension) est coupée.
+  private async revokeSessions(userId: string): Promise<void> {
+    await this.clearRefreshToken(userId);
+    await this.drizzle.db
+      .update(apiTokens)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(apiTokens.userId, userId), isNull(apiTokens.revokedAt)));
   }
 
   async clearRefreshToken(userId: string): Promise<void> {

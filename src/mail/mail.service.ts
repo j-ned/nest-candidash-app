@@ -69,10 +69,6 @@ export class MailService {
         user: this.configService.get<string>('MAIL_USER'),
         pass: this.configService.get<string>('MAIL_PASSWORD'),
       },
-      tls: {
-        rejectUnauthorized: false,
-        checkServerIdentity: () => undefined,
-      },
     });
   }
 
@@ -421,7 +417,7 @@ export class MailService {
               <h1>${templateData.icon} ${templateData.title}</h1>
             </div>
             <div class="content">
-              <p>Bonjour <strong>${templateData.userName || 'cher utilisateur'}</strong>,</p>
+              <p>Bonjour <strong>${templateData.userName ? this.escapeHtml(templateData.userName) : 'cher utilisateur'}</strong>,</p>
               <p>${templateData.greeting}</p>
 
               <div class="main-content">

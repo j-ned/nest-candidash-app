@@ -5,17 +5,11 @@ import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { randomUUID } from 'node:crypto';
 import { AppModule } from '../src/app.module';
-import { e2eCredentialsFromEnv } from './e2e-credentials';
+import { createE2eUser, e2eCredentialsFromEnv } from './e2e-credentials';
 
 interface LoginDto {
   email: string;
   password: string;
-}
-
-interface CreateUserDto {
-  email: string;
-  password: string;
-  username?: string;
 }
 
 // JobTrack
@@ -109,16 +103,11 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
 
     if (loginRes.status === 401) {
       // Create user then login
-      const createUserBody: CreateUserDto = {
+      await createE2eUser(app, {
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
         username: 'e2e-user',
-      };
-      // user creation is public in UsersController
-      const createUserRes = await api(httpServer)
-        .post('/api/v1/accounts/registration')
-        .send(createUserBody);
-      expect(createUserRes.status).toBeLessThan(400);
+      });
       // Retry login
       loginRes = await api(httpServer)
         .post('/api/v1/auth/login')

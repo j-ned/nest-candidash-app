@@ -23,7 +23,15 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
-import { DocumentService, DocumentType } from './document.service';
+import {
+  DocumentService,
+  DocumentType,
+  MAX_FILE_SIZE,
+} from './document.service';
+
+// Coupe l'upload dès 5 Mo : sans limite, multer garde tout le fichier en
+// mémoire avant la validation.
+const UPLOAD_LIMITS = { limits: { fileSize: MAX_FILE_SIZE, files: 1 } };
 
 @ApiTags('Documents')
 @Controller('jobtrack')
@@ -34,7 +42,7 @@ export class DocumentController {
 
   @Post(':id/cv')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', UPLOAD_LIMITS))
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Upload un CV (PDF, max 5 Mo)' })
   @ApiConsumes('multipart/form-data')
@@ -89,7 +97,7 @@ export class DocumentController {
 
   @Post(':id/lm')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', UPLOAD_LIMITS))
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Upload une lettre de motivation (PDF, max 5 Mo)' })
   @ApiConsumes('multipart/form-data')

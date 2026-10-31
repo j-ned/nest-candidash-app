@@ -4,17 +4,11 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { e2eCredentialsFromEnv } from './e2e-credentials';
+import { createE2eUser, e2eCredentialsFromEnv } from './e2e-credentials';
 
 interface LoginDto {
   email: string;
   password: string;
-}
-
-interface CreateUserDto {
-  email: string;
-  password: string;
-  username?: string;
 }
 
 interface ApiTokenResponseDto {
@@ -63,15 +57,11 @@ describe('ApiTokens CRUD (e2e)', () => {
       .send(loginBody);
 
     if (loginRes.status === 401) {
-      const createUserBody: CreateUserDto = {
+      await createE2eUser(app, {
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
         username: 'e2e-user',
-      };
-      const createUserRes = await api(httpServer)
-        .post('/api/v1/accounts/registration')
-        .send(createUserBody);
-      expect(createUserRes.status).toBeLessThan(400);
+      });
       loginRes = await api(httpServer)
         .post('/api/v1/auth/login')
         .send(loginBody);

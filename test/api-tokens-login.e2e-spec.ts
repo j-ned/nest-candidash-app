@@ -7,6 +7,7 @@ import request from 'supertest';
 import * as OTPAuth from 'otpauth';
 import { AppModule } from '../src/app.module';
 import {
+  createE2eUser,
   e2eCredentialsFromEnv,
   generateE2eCredentials,
 } from './e2e-credentials';
@@ -14,12 +15,6 @@ import {
 interface LoginDto {
   email: string;
   password: string;
-}
-
-interface CreateUserDto {
-  email: string;
-  password: string;
-  username?: string;
 }
 
 interface ApiTokenLoginResponse {
@@ -51,22 +46,16 @@ function extractCookies(res: request.Response): string[] {
 }
 
 async function ensureUser(
-  httpServer: Parameters<typeof request>[0],
+  app: INestApplication<Parameters<typeof request>[0]>,
   email: string,
   password: string,
 ): Promise<string[]> {
+  const httpServer = app.getHttpServer();
   let loginRes = await api(httpServer)
     .post('/api/v1/auth/login')
     .send({ email, password } satisfies LoginDto);
   if (loginRes.status === 401) {
-    const createUserRes = await api(httpServer)
-      .post('/api/v1/accounts/registration')
-      .send({
-        email,
-        password,
-        username: 'e2e-ext-login',
-      } satisfies CreateUserDto);
-    expect(createUserRes.status).toBeLessThan(400);
+    await createE2eUser(app, { email, password, username: 'e2e-ext-login' });
     loginRes = await api(httpServer)
       .post('/api/v1/auth/login')
       .send({ email, password } satisfies LoginDto);
@@ -126,7 +115,7 @@ describe('Extension login → API token (e2e)', () => {
 
   describe('without 2FA', () => {
     beforeAll(async () => {
-      await ensureUser(httpServer, NO_2FA_EMAIL, NO_2FA_PASSWORD);
+      await ensureUser(app, NO_2FA_EMAIL, NO_2FA_PASSWORD);
     });
 
     it('rejects wrong credentials with a generic message', async () => {
@@ -231,7 +220,7 @@ describe('Extension login → API token (e2e)', () => {
       // refresh token). On simule ce comportement ici en réassignant
       // webCookies à chaque refresh réussi, pour représenter fidèlement
       // « la session web en cours » à travers le temps.
-      let webCookies = await ensureUser(httpServer, email, password);
+      let webCookies = await ensureUser(app, email, password);
 
       const baselineRefresh = await api(httpServer)
         .post('/api/v1/auth/refresh')
@@ -273,11 +262,7 @@ describe('Extension login → API token (e2e)', () => {
     let sessionCookies: string[];
 
     beforeAll(async () => {
-      sessionCookies = await ensureUser(
-        httpServer,
-        TWOFA_EMAIL,
-        TWOFA_PASSWORD,
-      );
+      sessionCookies = await ensureUser(app, TWOFA_EMAIL, TWOFA_PASSWORD);
 
       // Repartir d'un état déterministe : si une exécution précédente de ce
       // fichier a déjà activé la 2FA sur ce compte, /2fa/setup échouerait
