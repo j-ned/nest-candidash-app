@@ -7,7 +7,6 @@ import { and, eq, gte } from 'drizzle-orm';
 import { DrizzleService } from '../db/drizzle.service';
 import { users } from '../db/schema';
 import * as crypto from 'crypto';
-import * as bcrypt from 'bcryptjs';
 import { User, UserCreateData, UserUpdateData } from './interfaces';
 import { UserMapper } from './mappers';
 import { hashPassword, verifyPassword } from './password-hashing';
@@ -212,7 +211,7 @@ export class UsersService {
     refreshToken: string,
     expiresAt: Date,
   ): Promise<void> {
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    const hashedRefreshToken = this.hashRefreshToken(refreshToken);
 
     await this.drizzle.db
       .update(users)
@@ -241,7 +240,20 @@ export class UsersService {
       return false;
     }
 
-    return bcrypt.compare(refreshToken, row.refreshToken);
+    const expected = Buffer.from(row.refreshToken);
+    const actual = Buffer.from(this.hashRefreshToken(refreshToken));
+    return (
+      expected.length === actual.length &&
+      crypto.timingSafeEqual(expected, actual)
+    );
+  }
+
+  // SHA-256 et non bcrypt : bcrypt tronque à 72 octets, or ceux d'un refresh
+  // JWT sont identiques pour tous les jetons d'un utilisateur (en-tête + sub),
+  // ce qui rendait n'importe quel ancien jeton valide. Le JWT est déjà
+  // aléatoire et signé : un hachage rapide suffit.
+  private hashRefreshToken(refreshToken: string): string {
+    return crypto.createHash('sha256').update(refreshToken).digest('hex');
   }
 
   async clearRefreshToken(userId: string): Promise<void> {
