@@ -74,6 +74,9 @@ export class AnalyticsService {
   async stats(days: number): Promise<AnalyticsStats> {
     const day = sql`(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TIME_ZONE})::date`;
     const since = sql`(now() AT TIME ZONE ${TIME_ZONE})::date - ${days - 1}::int`;
+    // Même borne en UTC, comparée telle quelle à "createdAt" : l'index Visites_createdAt_idx
+    // sert, ce qu'un filtre sur l'expression `day` empêche.
+    const sinceUtc = sql`((${since})::timestamp AT TIME ZONE ${TIME_ZONE}) AT TIME ZONE 'UTC'`;
 
     const daily = await this.drizzle.db.execute<{
       date: string;
@@ -92,7 +95,7 @@ export class AnalyticsService {
       count: string;
     }>(sql`
       SELECT path AS label, COUNT(*) AS count FROM "Visites"
-      WHERE ${day} >= ${since}
+      WHERE "createdAt" >= ${sinceUtc}
       GROUP BY path ORDER BY count DESC, path LIMIT ${TOP_LIMIT}`);
 
     // Une ligne par visiteur et par jour : sa première origine connue, sinon accès direct (null)
@@ -103,7 +106,7 @@ export class AnalyticsService {
       WITH per_visit AS (
         SELECT (array_agg(source ORDER BY "createdAt") FILTER (WHERE source IS NOT NULL))[1] AS source
         FROM "Visites"
-        WHERE ${day} >= ${since}
+        WHERE "createdAt" >= ${sinceUtc}
         GROUP BY "visitorHash", ${day}
       )
       SELECT source AS label, COUNT(*) AS count FROM per_visit

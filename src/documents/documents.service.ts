@@ -36,12 +36,21 @@ export class DocumentsService {
 
   /** Liste sans le contenu, du plus récemment modifié au plus ancien. */
   async list(userId: string): Promise<DocumentSummary[]> {
-    const rows = await this.drizzle.db
-      .select()
+    // Le markdown n'est pas lu : la liste n'affiche que les métadonnées
+    return this.drizzle.db
+      .select({
+        id: documents.id,
+        kind: documents.kind,
+        title: documents.title,
+        template: documents.template,
+        baseDocumentId: documents.baseDocumentId,
+        jobTrackId: documents.jobTrackId,
+        createdAt: documents.createdAt,
+        updatedAt: documents.updatedAt,
+      })
       .from(documents)
       .where(eq(documents.userId, userId))
       .orderBy(desc(documents.updatedAt));
-    return rows.map(toSummary);
   }
 
   async get(id: string, userId: string): Promise<DocumentDetail> {
