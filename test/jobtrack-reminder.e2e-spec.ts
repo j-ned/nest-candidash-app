@@ -86,7 +86,7 @@ function api(server: Parameters<typeof request>[0]) {
 }
 
 describe('JobTrack & Reminder CRUD (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<Parameters<typeof request>[0]>;
   let httpServer: Parameters<typeof request>[0];
   let authCookies: string[];
   let createdJobTrack: JobTrackResponseDto;
@@ -99,9 +99,7 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await configureApp(app);
-    httpServer = app.getHttpServer() as unknown as Parameters<
-      typeof request
-    >[0];
+    httpServer = app.getHttpServer();
 
     // Try login first
     const loginBody: LoginDto = { email: TEST_EMAIL, password: TEST_PASSWORD };
@@ -131,9 +129,7 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
     // Cookie-only : on capture les cookies HttpOnly (access_token + refresh_token)
     // pour les rejouer sur les requêtes authentifiées (plus de Bearer / token dans le body).
     const setCookie = loginRes.headers['set-cookie'] as unknown as
-      | string[]
-      | string
-      | undefined;
+      string[] | string | undefined;
     authCookies = Array.isArray(setCookie)
       ? setCookie
       : setCookie
@@ -251,7 +247,8 @@ describe('JobTrack & Reminder CRUD (e2e)', () => {
         .set('Cookie', authCookies)
         .send(body);
       expect(res.status).toBe(200);
-      return res.body as unknown as JobTrackWithReminderResponseDto;
+      const json: unknown = res.body;
+      return json as JobTrackWithReminderResponseDto;
     }
 
     async function spotted(): Promise<string> {
