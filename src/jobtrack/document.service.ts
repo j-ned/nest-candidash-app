@@ -42,13 +42,14 @@ export class DocumentService {
     return type === 'cv' ? 'cvFileName' : 'lmFileName';
   }
 
+  // Vérifie la propriété et renvoie les noms de fichiers, en une requête.
   private async verifyOwnership(
     jobTrackId: string,
     userId: string,
-  ): Promise<void> {
+  ): Promise<{ cvFileName: string | null; lmFileName: string | null }> {
     const jobTrack = await this.drizzle.db.query.jobTracks.findFirst({
       where: eq(jobTracks.id, jobTrackId),
-      columns: { userId: true },
+      columns: { userId: true, cvFileName: true, lmFileName: true },
     });
 
     if (!jobTrack) {
@@ -60,6 +61,8 @@ export class DocumentService {
         "Vous ne pouvez accéder qu'à vos propres candidatures",
       );
     }
+
+    return jobTrack;
   }
 
   validateFile(file: Express.Multer.File): void {
@@ -124,15 +127,8 @@ export class DocumentService {
     userId: string,
     type: DocumentType,
   ): Promise<{ stream: Readable; fileName: string; contentType: string }> {
-    await this.verifyOwnership(jobTrackId, userId);
-
-    const jobTrack = await this.drizzle.db.query.jobTracks.findFirst({
-      where: eq(jobTracks.id, jobTrackId),
-      columns: { cvFileName: true, lmFileName: true },
-    });
-
-    const fileName =
-      type === 'cv' ? jobTrack?.cvFileName : jobTrack?.lmFileName;
+    const jobTrack = await this.verifyOwnership(jobTrackId, userId);
+    const fileName = type === 'cv' ? jobTrack.cvFileName : jobTrack.lmFileName;
     if (!fileName) {
       throw new NotFoundException('Aucun document trouvé');
     }
@@ -154,15 +150,8 @@ export class DocumentService {
     userId: string,
     type: DocumentType,
   ): Promise<void> {
-    await this.verifyOwnership(jobTrackId, userId);
-
-    const jobTrack = await this.drizzle.db.query.jobTracks.findFirst({
-      where: eq(jobTracks.id, jobTrackId),
-      columns: { cvFileName: true, lmFileName: true },
-    });
-
-    const fileName =
-      type === 'cv' ? jobTrack?.cvFileName : jobTrack?.lmFileName;
+    const jobTrack = await this.verifyOwnership(jobTrackId, userId);
+    const fileName = type === 'cv' ? jobTrack.cvFileName : jobTrack.lmFileName;
     if (!fileName) {
       throw new NotFoundException('Aucun document trouvé');
     }

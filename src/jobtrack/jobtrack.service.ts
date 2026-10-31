@@ -58,16 +58,17 @@ export class JobTrackService {
    * Récupère tous les suivis de candidature d’un utilisateur
    */
   async findAllByUser(userId: string): Promise<JobTrack[]> {
+    // Le texte de l'offre (jusqu'à 20 000 caractères) reste sur le détail : il
+    // n'est même pas lu en base pour la liste.
     const rows = await this.drizzle.db.query.jobTracks.findMany({
       where: eq(jobTracks.userId, userId),
+      columns: { offerText: false },
       with: { reminders: true },
       orderBy: [desc(jobTracks.createdAt)],
     });
-    // Le texte de l'offre (jusqu'à 20 000 caractères) reste sur le détail : liste légère
-    return rows.map((r) => ({
-      ...JobTrackMapper.mapJobTrackToJobTrack(r),
-      offerText: undefined,
-    }));
+    return rows.map((r) =>
+      JobTrackMapper.mapJobTrackToJobTrack({ ...r, offerText: null }),
+    );
   }
 
   /**
@@ -77,12 +78,18 @@ export class JobTrackService {
   async findByJobUrl(userId: string, rawUrl: string): Promise<JobTrack | null> {
     const target = normalizeJobUrl(rawUrl);
     if (!target) return null;
-    const jobs = await this.findAllByUser(userId);
-    return (
-      jobs.find(
-        (job) => job.jobUrl && normalizeJobUrl(job.jobUrl) === target,
-      ) ?? null
+    // Appelé par l'extension à chaque page d'offre : on ne lit que les URL,
+    // puis la seule candidature trouvée.
+    const urls = await this.drizzle.db.query.jobTracks.findMany({
+      where: eq(jobTracks.userId, userId),
+      columns: { id: true, jobUrl: true },
+    });
+    const match = urls.find(
+      (job) => job.jobUrl && normalizeJobUrl(job.jobUrl) === target,
     );
+    if (!match) return null;
+    const job = await this.findOne(match.id, userId);
+    return job && { ...job, offerText: undefined };
   }
 
   /**
