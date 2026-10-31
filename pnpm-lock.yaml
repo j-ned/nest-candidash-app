@@ -47,9 +47,6 @@ importers:
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
-      drizzle-kit:
-        specifier: ^0.31.11
-        version: 0.31.11
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(@types/pg@8.23.1)(pg@8.23.1)
@@ -147,6 +144,9 @@ importers:
       '@types/supertest':
         specifier: ^6.0.3
         version: 6.0.3
+      drizzle-kit:
+        specifier: ^0.31.11
+        version: 0.31.11
       eslint:
         specifier: ^9.39.5
         version: 9.39.5

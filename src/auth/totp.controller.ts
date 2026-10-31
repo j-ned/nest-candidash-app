@@ -11,6 +11,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response as ExpressResponse } from 'express';
 import { AuthService } from './auth.service';
+import { setAuthCookies } from './auth-cookies';
 import {
   VerifyTotpSetupDto,
   ValidateTotpDto,
@@ -68,22 +69,7 @@ export class TotpController {
       dto.token,
     );
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      path: '/',
-    };
-
-    response.cookie('refresh_token', authResult.refresh_token, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    response.cookie('access_token', authResult.access_token, {
-      ...cookieOptions,
-      maxAge: 24 * 60 * 60 * 1000,
-    });
+    setAuthCookies(response, authResult);
 
     return AuthMapper.mapAuthResultToLoginResponse(authResult);
   }
@@ -100,22 +86,7 @@ export class TotpController {
       dto.recoveryCode,
     );
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      path: '/',
-    };
-
-    response.cookie('refresh_token', authResult.refresh_token, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    response.cookie('access_token', authResult.access_token, {
-      ...cookieOptions,
-      maxAge: 24 * 60 * 60 * 1000,
-    });
+    setAuthCookies(response, authResult);
 
     return AuthMapper.mapAuthResultToLoginResponse(authResult);
   }

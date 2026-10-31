@@ -14,6 +14,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response as ExpressResponse } from 'express';
 import { AuthService } from './auth.service';
+import { clearAuthCookies, setAuthCookies } from './auth-cookies';
 import { LoginDto } from './dto/login.dto';
 import {
   RegisterDto,
@@ -59,22 +60,7 @@ export class AuthController {
       return result;
     }
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      path: '/',
-    };
-
-    response.cookie('refresh_token', result.refresh_token, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    response.cookie('access_token', result.access_token, {
-      ...cookieOptions,
-      maxAge: 24 * 60 * 60 * 1000,
-    });
+    setAuthCookies(response, result);
 
     return AuthMapper.mapAuthResultToLoginResponse(result);
   }
@@ -99,22 +85,7 @@ export class AuthController {
 
     const authResult = await this.authService.refreshToken(refreshToken);
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      path: '/',
-    };
-
-    response.cookie('refresh_token', authResult.refresh_token, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    response.cookie('access_token', authResult.access_token, {
-      ...cookieOptions,
-      maxAge: 24 * 60 * 60 * 1000,
-    });
+    setAuthCookies(response, authResult);
 
     return AuthMapper.toRefreshResponse();
   }
@@ -130,15 +101,7 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) response: ExpressResponse,
   ): Promise<{ message: string }> {
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      path: '/',
-    };
-
-    response.clearCookie('refresh_token', cookieOptions);
-    response.clearCookie('access_token', cookieOptions);
+    clearAuthCookies(response);
 
     return this.authService.logout(req.user.sub);
   }
@@ -229,22 +192,7 @@ export class AuthController {
       verifyDto.email,
     );
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      path: '/',
-    };
-
-    response.cookie('refresh_token', authResult.refresh_token, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
-    });
-
-    response.cookie('access_token', authResult.access_token, {
-      ...cookieOptions,
-      maxAge: 24 * 60 * 60 * 1000, // 24 heures
-    });
+    setAuthCookies(response, authResult);
 
     return AuthMapper.mapAuthResultToLoginResponse(authResult);
   }

@@ -7,14 +7,15 @@ import { TotpController } from './totp.controller';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
 import { VerificationService } from './services/verification.service';
 import { PendingUserService } from './services/pending-user.service';
-import { EmailService } from './services/email.service';
 import { TotpService } from './services/totp.service';
 import { TotpCryptoService } from './services/totp-crypto.service';
 import { UsersModule } from '../users/users.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     ConfigModule,
+    MailModule,
     forwardRef(() => UsersModule),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -32,16 +33,9 @@ import { UsersModule } from '../users/users.module';
     JwtAuthGuard,
     VerificationService,
     PendingUserService,
-    EmailService,
     TotpService,
     TotpCryptoService,
   ],
-  exports: [
-    AuthService,
-    JwtAuthGuard,
-    VerificationService,
-    PendingUserService,
-    EmailService,
-  ],
+  exports: [AuthService, JwtAuthGuard, VerificationService, PendingUserService],
 })
 export class AuthModule {}

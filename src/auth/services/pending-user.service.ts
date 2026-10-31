@@ -1,4 +1,5 @@
 import { Injectable, ConflictException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { eq, lt } from 'drizzle-orm';
 import { DrizzleService } from '../../db/drizzle.service';
 import { pendingUsers, users } from '../../db/schema';
@@ -71,6 +72,8 @@ export class PendingUserService {
       .where(eq(pendingUsers.email, email));
   }
 
+  // Purge quotidienne : sans elle la table grossit indéfiniment
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async cleanupExpiredPendingUsers(): Promise<void> {
     const yesterday = new Date();
     yesterday.setHours(yesterday.getHours() - 24);

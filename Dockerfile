@@ -24,14 +24,11 @@ RUN corepack enable
 # Copier les fichiers de dépendances
 COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Dépendances de prod uniquement (drizzle-kit + drizzle-orm sont déclarés en
-# dependencies pour permettre `drizzle-kit migrate` au boot, sans muter le manifest).
+# Dépendances de prod uniquement (drizzle-kit reste un outil de dev)
 RUN pnpm install --frozen-lockfile --prod
 
-# Copier les migrations Drizzle, la config et le schéma (requis par drizzle-kit migrate)
+# Migrations SQL, appliquées au démarrage par dist/db/migrate.js
 COPY --chown=node:node --from=builder /app/drizzle ./drizzle
-COPY --chown=node:node --from=builder /app/drizzle.config.ts ./drizzle.config.ts
-COPY --chown=node:node --from=builder /app/src/db/schema.ts ./src/db/schema.ts
 
 # Copier le build depuis le stage précédent
 COPY --chown=node:node --from=builder /app/dist ./dist
@@ -43,7 +40,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/api/v1/health').then(r=>{if(!r.ok)throw r.status})"
 
-# Migration baseline idempotente (no-op si la base est déjà au schéma courant) puis démarrage.
+# Migrations (no-op si la base est déjà au schéma courant) puis démarrage.
 # `exec` : rend explicite que node devient le processus n° 1 et reçoit SIGTERM (le shell le fait
 # déjà par optimisation de dernière commande, mais on ne veut pas en dépendre).
-CMD ["sh", "-c", "pnpm drizzle-kit migrate && exec node dist/main.js"]
+CMD ["sh", "-c", "node dist/db/migrate.js && exec node dist/main.js"]

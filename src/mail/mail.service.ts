@@ -11,12 +11,6 @@ export interface ReminderEmailData {
   jobUrl?: string;
 }
 
-export interface RegistrationEmailData {
-  userEmail: string;
-  userName?: string;
-  registrationDate: Date;
-}
-
 export interface PasswordResetEmailData {
   userEmail: string;
   userName?: string;
@@ -72,6 +66,88 @@ export class MailService {
     });
   }
 
+  // Code de validation d'inscription (auth/register, resend-code)
+  async sendVerificationEmail(email: string, code: string): Promise<boolean> {
+    try {
+      // Sans SMTP configuré, le code n'est affiché qu'en local : jamais en
+      // production, où il permettrait de valider l'inscription depuis les logs.
+      if (
+        !this.configService.get<string>('MAIL_USER') ||
+        !this.configService.get<string>('MAIL_PASSWORD')
+      ) {
+        if (this.configService.get<string>('NODE_ENV') === 'production') {
+          this.logger.error(
+            'SMTP non configuré : code de validation non envoyé',
+          );
+          return false;
+        }
+        this.logger.warn(
+          `SMTP non configuré (dev) : code pour ${email} : ${code}`,
+        );
+        return true;
+      }
+
+      const mailOptions = {
+        from: `"${this.configService.get<string>('MAIL_FROM_NAME') || 'Candidash'}" <${this.configService.get<string>('MAIL_FROM_ADDRESS') || this.configService.get<string>('MAIL_USER')}>`,
+        to: email,
+        subject: 'Code de validation - Candidash',
+        html: `
+          <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">Candidash</h1>
+              <p style="color: white; margin: 10px 0 0 0; opacity: 0.9;">Validation de votre inscription</p>
+            </div>
+
+            <div style="background: #ffffff; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <h2 style="color: #333; text-align: center; margin-bottom: 30px;">Votre code de validation</h2>
+
+              <p style="color: #666; line-height: 1.6; margin-bottom: 30px;">
+                Bonjour,<br><br>
+                Merci de vous être inscrit sur Candidash ! Pour finaliser votre inscription, veuillez utiliser le code de validation suivant :
+              </p>
+
+              <div style="background: #f8f9fa; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
+                <span style="font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 8px; font-family: monospace;">${code}</span>
+              </div>
+
+              <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+                Ce code est valide pendant <strong>10 minutes</strong>. Si vous n'avez pas demandé cette inscription, vous pouvez ignorer cet email.
+              </p>
+
+              <div style="text-align: center; margin-top: 40px;">
+                <p style="color: #999; font-size: 14px; margin: 0;">
+                  Candidash - Votre assistant pour gérer vos candidatures
+                </p>
+              </div>
+            </div>
+          </div>
+        `,
+        text: `
+Candidash - Code de validation
+
+Bonjour,
+
+Merci de vous être inscrit sur Candidash ! Pour finaliser votre inscription, veuillez utiliser le code de validation suivant :
+
+Code : ${code}
+
+Ce code est valide pendant 10 minutes. Si vous n'avez pas demandé cette inscription, vous pouvez ignorer cet email.
+
+Candidash - Votre assistant pour gérer vos candidatures
+        `.trim(),
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        "Erreur lors de l'envoi du code de validation",
+        error instanceof Error ? error.stack : String(error),
+      );
+      return false;
+    }
+  }
+
   // Plain text only: the body is visitor input, never interpolated into HTML
   async sendContactMessage(data: ContactMessageEmailData): Promise<boolean> {
     try {
@@ -87,35 +163,6 @@ export class MailService {
     } catch (error) {
       this.logger.error(
         "Erreur lors de l'envoi du message de contact :",
-        error,
-      );
-      return false;
-    }
-  }
-
-  async sendRegistrationConfirmationEmail(
-    data: RegistrationEmailData,
-  ): Promise<boolean> {
-    try {
-      const htmlContent = this.generateRegistrationEmailTemplate(data);
-      const textContent = this.generateRegistrationEmailText(data);
-
-      const mailOptions = {
-        from: `${this.configService.get<string>('MAIL_FROM_NAME')} <${this.configService.get<string>('MAIL_FROM_ADDRESS')}>`,
-        to: data.userEmail,
-        subject: 'Bienvenue ! Confirmation de votre inscription',
-        text: textContent,
-        html: htmlContent,
-      };
-
-      await this.transporter.sendMail(mailOptions);
-      this.logger.log(
-        `Email de confirmation d'inscription envoyé avec succès à ${data.userEmail}`,
-      );
-      return true;
-    } catch (error) {
-      this.logger.error(
-        `Erreur lors de l'envoi de l'email de confirmation à ${data.userEmail}:`,
         error,
       );
       return false;
@@ -589,67 +636,6 @@ export class MailService {
   /**
    * Génère le template HTML pour l'email de confirmation d'inscription
    */
-  private generateRegistrationEmailTemplate(
-    data: RegistrationEmailData,
-  ): string {
-    const registrationDateText =
-      data.registrationDate.toLocaleDateString('fr-FR');
-
-    const mainContent = `
-      <div style="text-align: center; padding: 24px; margin: 24px 0; background: linear-gradient(135deg, oklch(96.00% 0.025 142.00) 0%, oklch(92.00% 0.040 142.00) 100%); border: 2px solid oklch(58.00% 0.125 142.00); border-radius: 12px;">
-        <h2 style="color: oklch(47.00% 0.101 142.00); margin: 0 0 8px 0; font-size: 24px; font-weight: 700;">✨ Félicitations !</h2>
-        <p style="color: oklch(51.00% 0.125 142.00); font-size: 16px; font-weight: 500; margin: 0;">Votre compte CandidashApp a été créé avec succès</p>
-      </div>
-
-      <p>Votre inscription a été confirmée le <span style="color: oklch(58.00% 0.125 142.00); font-weight: 600; font-size: 17px;">${registrationDateText}</span>. Vous faites maintenant partie de notre communauté de chercheurs d'emploi proactifs !</p>
-
-      <h3 style="font-weight: 600; color: #1f2937; font-size: 18px; margin: 24px 0 16px 0;">🚀 Voici ce que vous pouvez faire dès maintenant :</h3>
-
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0;">
-        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <div style="font-size: 24px; margin-bottom: 8px;">📝</div>
-          <div style="color: #1e293b; font-weight: 600; font-size: 16px; margin-bottom: 4px;">Gérer vos candidatures</div>
-          <p style="color: #64748b; font-size: 14px; line-height: 1.4; margin: 0;">Créez et organisez toutes vos candidatures en un seul endroit</p>
-        </div>
-        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <div style="font-size: 24px; margin-bottom: 8px;">📊</div>
-          <div style="color: #1e293b; font-weight: 600; font-size: 16px; margin-bottom: 4px;">Suivre votre progression</div>
-          <p style="color: #64748b; font-size: 14px; line-height: 1.4; margin: 0;">Surveillez l'évolution de chaque postulation en temps réel</p>
-        </div>
-        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <div style="font-size: 24px; margin-bottom: 8px;">⏰</div>
-          <div style="color: #1e293b; font-weight: 600; font-size: 16px; margin-bottom: 4px;">Rappels automatiques</div>
-          <p style="color: #64748b; font-size: 14px; line-height: 1.4; margin: 0;">Ne ratez plus jamais un follow-up grâce à nos notifications</p>
-        </div>
-        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <div style="font-size: 24px; margin-bottom: 8px;">📈</div>
-          <div style="color: #1e293b; font-weight: 600; font-size: 16px; margin-bottom: 4px;">Analytics détaillés</div>
-          <p style="color: #64748b; font-size: 14px; line-height: 1.4; margin: 0;">Analysez vos performances et optimisez votre approche</p>
-        </div>
-      </div>
-
-      <p>Nous sommes ravis de vous accompagner dans votre recherche d'emploi et vous souhaitons beaucoup de succès dans vos démarches !</p>
-
-      <p style="margin-top: 32px; margin-bottom: 0;"><strong>L'équipe CandidashApp</strong><br>
-      <em>Votre partenaire pour une recherche d'emploi organisée et efficace</em></p>
-    `;
-
-    return this.generateBaseEmailTemplate({
-      userName: data.userName,
-      title: 'Bienvenue sur CandidashApp !',
-      greeting:
-        "Félicitations ! Votre parcours vers l'emploi idéal commence ici.",
-      mainContent,
-      ctaButton: {
-        text: '🎯 Connectez-vous à votre tableau de bord et créez votre première candidature !',
-      },
-      footerMessage:
-        'Cet email a été envoyé automatiquement suite à votre inscription.',
-      type: 'success',
-      icon: '🎉',
-    });
-  }
-
   /**
    * Génère le template HTML pour l'email de réinitialisation de mot de passe
    */
@@ -753,34 +739,6 @@ Cet email a été envoyé automatiquement suite à une demande de réinitialisat
   /**
    * Génère le contenu texte pour l'email de confirmation d'inscription
    */
-  private generateRegistrationEmailText(data: RegistrationEmailData): string {
-    const registrationDateText =
-      data.registrationDate.toLocaleDateString('fr-FR');
-
-    return `
-Bienvenue ! Confirmation d'inscription
-
-Bonjour ${data.userName || 'cher utilisateur'},
-
-Félicitations ! Votre compte a été créé avec succès.
-
-Votre inscription sur notre plateforme de suivi des candidatures a été confirmée le ${registrationDateText}.
-
-Vous pouvez maintenant :
-- Créer et gérer vos candidatures
-- Suivre l'évolution de vos postulations
-- Recevoir des rappels automatiques
-- Organiser vos recherches d'emploi
-
-Nous vous souhaitons beaucoup de succès dans vos recherches !
-
-L'équipe de support
-
----
-Cet email a été envoyé automatiquement suite à votre inscription.
-    `;
-  }
-
   /**
    * Génère le contenu texte pour l'email de rappel
    */
