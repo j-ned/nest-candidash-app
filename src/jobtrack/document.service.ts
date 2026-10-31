@@ -65,6 +65,38 @@ export class DocumentService {
     return jobTrack;
   }
 
+  /**
+   * Supprime du stockage les CV/LM des candidatures données (RGPD) : appelé avant
+   * la suppression en base, sinon les PDF resteraient orphelins dans le bucket.
+   * Seuls les fichiers enregistrés sont visés : aucun appel S3 sans document.
+   */
+  async deleteFiles(
+    userId: string,
+    jobs: {
+      id: string;
+      cvFileName: string | null;
+      lmFileName: string | null;
+    }[],
+  ): Promise<void> {
+    const keys = jobs.flatMap((job) => [
+      ...(job.cvFileName ? [this.getS3Key(userId, job.id, 'cv')] : []),
+      ...(job.lmFileName ? [this.getS3Key(userId, job.id, 'lm')] : []),
+    ]);
+    if (keys.length === 0) return;
+    const bucket = this.getBucket();
+    await Promise.all(
+      keys.map((key) => this.storage.deleteObject(bucket, key)),
+    );
+  }
+
+  async deleteAllForUser(userId: string): Promise<void> {
+    const jobs = await this.drizzle.db.query.jobTracks.findMany({
+      where: eq(jobTracks.userId, userId),
+      columns: { id: true, cvFileName: true, lmFileName: true },
+    });
+    await this.deleteFiles(userId, jobs);
+  }
+
   validateFile(file: Express.Multer.File): void {
     // Le type MIME est déclaré par le client : on vérifie aussi la signature.
     const isPdf =

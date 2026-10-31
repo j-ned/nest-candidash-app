@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { UsersController } from './users.controller';
 import type { UsersService } from './users.service';
 import type { MailService } from '../mail/mail.service';
+import type { DocumentService } from '../jobtrack/document.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 describe('UsersController.updateUser', () => {
@@ -18,6 +19,7 @@ describe('UsersController.updateUser', () => {
     const controller = new UsersController(
       usersService as unknown as UsersService,
       {} as MailService,
+      {} as DocumentService,
     );
     const req = { user: { sub: 'u1' } };
     return { controller, usersService, req };

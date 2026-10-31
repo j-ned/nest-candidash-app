@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { and, eq, desc } from 'drizzle-orm';
 import { DrizzleService } from '../db/drizzle.service';
+import { DocumentService } from './document.service';
 import { jobTracks, reminders, JobStatus, ContractType } from '../db/schema';
 import { CreateJobTrackDto } from './dto/create-jobtrack.dto';
 import { UpdateJobTrackDto } from './dto/update-jobtrack.dto';
@@ -30,7 +31,10 @@ function blankToNull(text: string | undefined): string | null {
 
 @Injectable()
 export class JobTrackService {
-  constructor(private readonly drizzle: DrizzleService) {}
+  constructor(
+    private readonly drizzle: DrizzleService,
+    private readonly documents: DocumentService,
+  ) {}
 
   /**
    * Crée un nouveau suivi de candidature pour un utilisateur
@@ -196,7 +200,7 @@ export class JobTrackService {
   async remove(id: string, userId: string): Promise<JobTrack> {
     const existing = await this.drizzle.db.query.jobTracks.findFirst({
       where: eq(jobTracks.id, id),
-      columns: { userId: true },
+      columns: { userId: true, cvFileName: true, lmFileName: true },
     });
 
     if (!existing) {
@@ -209,6 +213,8 @@ export class JobTrackService {
         'Vous ne pouvez supprimer que vos propres annonces',
       );
     }
+
+    await this.documents.deleteFiles(userId, [{ id, ...existing }]);
 
     const [deleted] = await this.drizzle.db
       .delete(jobTracks)

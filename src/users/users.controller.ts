@@ -23,6 +23,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { MailService } from '../mail/mail.service';
+import { DocumentService } from '../jobtrack/document.service';
 import { UserMapper } from './mappers';
 import type { UserSafe } from './interfaces';
 import {
@@ -45,6 +46,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
+    private readonly documentService: DocumentService,
   ) {}
 
   @Get('profile/:id')
@@ -126,6 +128,8 @@ export class UsersController {
       );
     }
 
+    // Les PDF partent du stockage avant le compte (RGPD) : la base ne les référence plus après
+    await this.documentService.deleteAllForUser(id);
     const user = await this.usersService.remove(id);
     return UserMapper.mapUserToSafe(user);
   }
