@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
 
   constructor() {
@@ -25,13 +26,17 @@ export class EmailService {
 
   async sendVerificationEmail(email: string, code: string): Promise<boolean> {
     try {
-      // Si les variables d'environnement ne sont pas configurées, utiliser la console
+      // Sans SMTP configuré, le code n'est affiché qu'en local : jamais en
+      // production, où il permettrait de valider l'inscription depuis les logs.
       if (!process.env.MAIL_USER || !process.env.MAIL_PASSWORD) {
-        console.log(
-          `⚠️  Configuration email manquante. Code de validation pour ${email}: ${code}`,
-        );
-        console.log(
-          '💡 Pour envoyer de vrais emails, configurez MAIL_USER et MAIL_PASSWORD dans votre fichier .env',
+        if (process.env.NODE_ENV === 'production') {
+          this.logger.error(
+            'SMTP non configuré : code de validation non envoyé',
+          );
+          return false;
+        }
+        this.logger.warn(
+          `SMTP non configuré (dev) : code pour ${email} : ${code}`,
         );
         return true;
       }
@@ -87,30 +92,12 @@ Candidash - Votre assistant pour gérer vos candidatures
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log(`✅ Email de validation envoyé à ${email}`);
       return true;
     } catch (error) {
-      console.error("❌ Erreur lors de l'envoi de l'email:", error);
-      // En cas d'erreur, afficher le code dans la console comme fallback
-      console.log(`🔄 Fallback - Code de validation pour ${email}: ${code}`);
-      return true; // On retourne true pour ne pas bloquer l'inscription
-    }
-  }
-
-  async testConnection(): Promise<boolean> {
-    try {
-      if (!process.env.MAIL_USER || !process.env.MAIL_PASSWORD) {
-        console.log(
-          "⚠️  Configuration email non trouvée dans les variables d'environnement",
-        );
-        return false;
-      }
-
-      await this.transporter.verify();
-      console.log('✅ Connexion au serveur email réussie');
-      return true;
-    } catch (error) {
-      console.error('❌ Erreur de connexion au serveur email:', error);
+      this.logger.error(
+        "Erreur lors de l'envoi du code de validation",
+        error instanceof Error ? error.stack : String(error),
+      );
       return false;
     }
   }

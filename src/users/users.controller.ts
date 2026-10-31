@@ -13,27 +13,22 @@ import {
   BadRequestException,
   UnauthorizedException,
   Logger,
-  Res,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import type { Response as ExpressResponse } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { AuthResponseDto } from '../auth/dto/auth-response.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { MailService } from '../mail/mail.service';
-import { AuthService } from '../auth/auth.service';
 import { UserMapper } from './mappers';
 import type { UserSafe } from './interfaces';
 import {
   ApiUserOperation,
   ApiAuthenticatedUserOperation,
   ApiUserResponse,
-  ApiRegistrationResponse,
   ApiUserUpdateResponse,
   ApiUserDeleteResponse,
   ApiPasswordResetRequestResponse,
@@ -50,7 +45,6 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
-    private readonly authService: AuthService,
   ) {}
 
   @Get('profile/:id')
@@ -72,74 +66,6 @@ export class UsersController {
     return UserMapper.mapUserToSafe(user);
   }
 
-  @Post('registration')
-  @ApiUserOperation(
-    'Enregistrer un nouveau compte utilisateur et le connecter automatiquement',
-  )
-  @ApiRegistrationResponse()
-  async createUser(
-    @Body() createUserDto: CreateUserDto,
-    @Res({ passthrough: true }) response: ExpressResponse,
-  ): Promise<AuthResponseDto> {
-    const user = await this.usersService.create(createUserDto);
-
-    try {
-      await this.mailService.sendRegistrationConfirmationEmail({
-        userEmail: user.email,
-        userName: user.username,
-        registrationDate: user.createdAt,
-      });
-    } catch (error) {
-      this.logger.error(
-        "Erreur lors de l'envoi de l'email de confirmation",
-        error instanceof Error ? error.stack : String(error),
-      );
-    }
-
-    // Connecter automatiquement l'utilisateur
-    const loginResult = await this.authService.login({
-      email: user.email,
-      password: createUserDto.password,
-    });
-
-    // Un utilisateur fraîchement créé n'a jamais de 2FA : ce cas n'arrive pas,
-    // on narrow simplement le type (cookie-only, pas de token dans le body).
-    if ('requires2FA' in loginResult) {
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          role: user.role,
-          totpEnabled: true,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        },
-      };
-    }
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
-      path: '/',
-    };
-
-    response.cookie('refresh_token', loginResult.refresh_token, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    response.cookie('access_token', loginResult.access_token, {
-      ...cookieOptions,
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    return {
-      user: loginResult.user,
-    };
-  }
-
   @Put('profile-update/:id')
   @ApiAuthenticatedUserOperation('Mettre à jour le profil utilisateur')
   @ApiUserIdParam()
@@ -158,8 +84,28 @@ export class UsersController {
       );
     }
 
-    updateUserDto.id = userId;
-    const user = await this.usersService.update(updateUserDto);
+    const { email, username, currentPassword } = updateUserDto;
+    const current = await this.usersService.findOne(userId);
+    if (!current) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+
+    if (email && email !== current.email) {
+      const confirmed =
+        currentPassword !== undefined &&
+        (await this.usersService.validatePassword(current, currentPassword));
+      if (!confirmed) {
+        throw new UnauthorizedException(
+          "Mot de passe actuel requis pour changer d'email",
+        );
+      }
+    }
+
+    const user = await this.usersService.update({
+      id: userId,
+      email,
+      username,
+    });
     return UserMapper.mapUserToSafe(user);
   }
 
@@ -185,6 +131,7 @@ export class UsersController {
   }
 
   @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiUserOperation('Demander une réinitialisation de mot de passe')
   @ApiPasswordResetRequestResponse()
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
@@ -221,6 +168,7 @@ export class UsersController {
   }
 
   @Post('reset-password')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiUserOperation('Réinitialiser le mot de passe avec un token')
   @ApiPasswordResetResponse()
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {

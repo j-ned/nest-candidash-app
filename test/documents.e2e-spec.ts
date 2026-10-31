@@ -4,7 +4,7 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { generateE2eCredentials } from './e2e-credentials';
+import { createE2eUser, generateE2eCredentials } from './e2e-credentials';
 
 type Server = Parameters<typeof request>[0];
 
@@ -20,14 +20,12 @@ interface DocumentDto {
 }
 
 async function signUpAndLogin(
-  server: Server,
+  app: INestApplication<Server>,
   label: string,
 ): Promise<string[]> {
+  const server = app.getHttpServer();
   const { email, password } = generateE2eCredentials(label);
-  const created = await request(server)
-    .post('/api/v1/accounts/registration')
-    .send({ email, password, username: `e2e_${label}` });
-  expect(created.status).toBeLessThan(400);
+  await createE2eUser(app, { email, password, username: `e2e_${label}` });
   const login = await request(server)
     .post('/api/v1/auth/login')
     .send({ email, password });
@@ -53,8 +51,8 @@ describe('Documents (e2e)', () => {
     app.setGlobalPrefix('api/v1');
     await app.init();
     server = app.getHttpServer();
-    alice = await signUpAndLogin(server, 'docs-alice');
-    bob = await signUpAndLogin(server, 'docs-bob');
+    alice = await signUpAndLogin(app, 'docs-alice');
+    bob = await signUpAndLogin(app, 'docs-bob');
   });
 
   afterAll(async () => {
