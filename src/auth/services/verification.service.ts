@@ -1,15 +1,16 @@
 import { Injectable } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { eq, lt } from 'drizzle-orm';
 import { DrizzleService } from '../../db/drizzle.service';
 import { verificationCodes } from '../../db/schema';
-import { EmailService } from './email.service';
+import { MailService } from '../../mail/mail.service';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class VerificationService {
   constructor(
     private readonly drizzle: DrizzleService,
-    private emailService: EmailService,
+    private mailService: MailService,
   ) {}
 
   generateVerificationCode(): string {
@@ -65,6 +66,8 @@ export class VerificationService {
     return false;
   }
 
+  // Purge quotidienne : sans elle la table grossit indéfiniment
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async cleanupExpiredCodes(): Promise<void> {
     await this.drizzle.db
       .delete(verificationCodes)
@@ -72,7 +75,7 @@ export class VerificationService {
   }
 
   async sendVerificationEmail(email: string, code: string): Promise<boolean> {
-    return this.emailService.sendVerificationEmail(email, code);
+    return this.mailService.sendVerificationEmail(email, code);
   }
 
   async canResendCode(email: string): Promise<boolean> {

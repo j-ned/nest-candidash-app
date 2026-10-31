@@ -48,42 +48,6 @@ export class ReminderAutomationService {
     }
   }
 
-  /**
-   * Méthode publique pour exécuter manuellement la vérification des rappels
-   */
-  async executeReminderCheck(): Promise<{
-    processed: number;
-    successful: number;
-    failed: number;
-  }> {
-    this.logger.log('Exécution manuelle de la vérification des rappels');
-    let processed = 0;
-    let successful = 0;
-    let failed = 0;
-    try {
-      const dueReminders = await this.findDueReminders();
-      processed = dueReminders.length;
-      this.logger.log(`${processed} rappel(s) à traiter`);
-      const results = await Promise.allSettled(
-        dueReminders.map((reminder) => this.processReminder(reminder)),
-      );
-      for (const result of results) {
-        if (result.status === 'fulfilled' && result.value) {
-          successful++;
-        } else {
-          failed++;
-        }
-      }
-      this.logger.log(
-        `Traitement terminé: ${successful} succès, ${failed} échecs sur ${processed} rappels`,
-      );
-    } catch (error) {
-      this.logger.error("Erreur lors de l'exécution manuelle:", error as Error);
-      failed = processed - successful;
-    }
-    return { processed, successful, failed };
-  }
-
   private async findDueReminders(): Promise<ReminderWithJobTrackAndUser[]> {
     const now = new Date();
     // Le filtre porte sur une colonne de la table liée (jobtrack.status),

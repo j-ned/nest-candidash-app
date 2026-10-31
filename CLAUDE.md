@@ -49,7 +49,7 @@ Run a single test: `pnpm jest -- --testPathPattern=<pattern>`
 
 ### Database
 
-Drizzle schema at `src/db/schema.ts`, config at `drizzle.config.ts`, migrations in `drizzle/`. Driver: `drizzle-orm/node-postgres` (pg `Pool`). Migrations are drizzle-kit generated; the `0000_baseline` migration is idempotent (`CREATE … IF NOT EXISTS` + `duplicate_object` guards) so `drizzle-kit migrate` at boot is a no-op on an already-provisioned DB. Table names are French via `pgTable('Utilisateurs', …)` etc. (`Utilisateurs`, `Annonces`, `Relance`, `CodesVerification`, `UtilisateursEnAttente`, `UserTracking`).
+Drizzle schema at `src/db/schema.ts`, config at `drizzle.config.ts`, migrations in `drizzle/`. Driver: `drizzle-orm/node-postgres` (pg `Pool`). Migrations are drizzle-kit generated; the `0000_baseline` migration is idempotent (`CREATE … IF NOT EXISTS` + `duplicate_object` guards) so the boot-time migration is a no-op on an already-provisioned DB. In the container, `dist/db/migrate.js` (drizzle-orm migrator, same `drizzle.__drizzle_migrations` table) runs before `main.js`; drizzle-kit is a devDependency only. Table names are French via `pgTable('Utilisateurs', …)` etc. (`Utilisateurs`, `Annonces`, `Relance`, `CodesVerification`, `UtilisateursEnAttente`, `UserTracking`).
 
 Key models: `User` → `JobTrack[]` → `Reminder[]`, `UserTracking`, `VerificationCode`, `PendingUser`. All child relations use `onDelete: Cascade`.
 
