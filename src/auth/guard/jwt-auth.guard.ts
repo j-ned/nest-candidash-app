@@ -26,13 +26,23 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException("Jeton d'authentification manquant");
     }
 
+    let payload: JwtPayload & { type?: unknown };
     try {
       // Secret issu de la config globale JwtModule (getOrThrow JWT_SECRET) ;
       // aucun fallback en dur, pour éviter toute forge de token.
-      request.user = await this.jwtService.verifyAsync<JwtPayload>(token);
+      payload = await this.jwtService.verifyAsync<JwtPayload>(token);
     } catch {
       throw new UnauthorizedException("Jeton d'authentification invalide");
     }
+
+    // Refresh et `2fa-pending` partagent le secret mais portent un `type` :
+    // seul un access token (sans `type`) ouvre une route protégée, sinon le
+    // jeton temporaire 2FA suffirait à contourner la double authentification.
+    if (payload.type !== undefined) {
+      throw new UnauthorizedException("Jeton d'authentification invalide");
+    }
+
+    request.user = payload;
     return true;
   }
 

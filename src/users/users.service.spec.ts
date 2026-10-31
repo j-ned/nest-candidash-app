@@ -48,3 +48,53 @@ describe('UsersService.validatePassword', () => {
     expect(set).not.toHaveBeenCalled();
   });
 });
+
+describe('UsersService refresh token', () => {
+  function setup() {
+    let stored: string | undefined;
+    const where = jest.fn().mockResolvedValue(undefined);
+    const set = jest.fn((values: { refreshToken: string }) => {
+      stored = values.refreshToken;
+      return { where };
+    });
+    const findFirst = jest.fn(() =>
+      Promise.resolve({
+        refreshToken: stored,
+        refreshTokenExpires: new Date(Date.now() + 60_000),
+      }),
+    );
+    const service = new UsersService({
+      db: { update: () => ({ set }), query: { users: { findFirst } } },
+    } as unknown as DrizzleService);
+    return { service, stored: () => stored };
+  }
+
+  // Deux refresh JWT d'un même utilisateur partagent leurs 72 premiers octets
+  // (en-tête + début du payload) : bcrypt les aurait confondus.
+  const prefix = 'A'.repeat(72);
+
+  it('accepts the latest refresh token', async () => {
+    const { service } = setup();
+    await service.updateRefreshToken('u1', `${prefix}.nouveau`, new Date());
+
+    await expect(
+      service.validateRefreshToken('u1', `${prefix}.nouveau`),
+    ).resolves.toBe(true);
+  });
+
+  it('rejects an older token sharing the same 72-byte prefix', async () => {
+    const { service } = setup();
+    await service.updateRefreshToken('u1', `${prefix}.nouveau`, new Date());
+
+    await expect(
+      service.validateRefreshToken('u1', `${prefix}.ancien`),
+    ).resolves.toBe(false);
+  });
+
+  it('never stores the token in clear', async () => {
+    const { service, stored } = setup();
+    await service.updateRefreshToken('u1', `${prefix}.nouveau`, new Date());
+
+    expect(stored()).not.toContain(prefix);
+  });
+});

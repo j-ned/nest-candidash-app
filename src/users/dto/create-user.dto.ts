@@ -1,7 +1,8 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
-import { roleEnum } from '../../db/schema';
 
+// Inscription publique : le champ `role` est volontairement absent (sinon
+// n'importe qui pourrait créer un compte ADMIN). Tout compte naît USER.
 export class CreateUserDto extends createZodDto(
   z
     .object({
@@ -12,11 +13,6 @@ export class CreateUserDto extends createZodDto(
       password: z.string().min(6, {
         message: 'Le mot de passe doit contenir au moins 6 caractères',
       }),
-      role: z
-        .enum(roleEnum.enumValues, {
-          message: 'Le rôle doit être USER ou ADMIN',
-        })
-        .optional(),
     })
     .strict(),
 ) {}
