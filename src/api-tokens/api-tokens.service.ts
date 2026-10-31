@@ -4,11 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes, createHash } from 'node:crypto';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { DrizzleService } from '../db/drizzle.service';
 import { apiTokens } from '../db/schema';
 import { ApiToken, ApiTokenCreated } from './interfaces';
 import { ApiTokenMapper } from './mappers/api-token.mapper';
+import { activeApiToken } from './active-api-token';
 import { AuthService } from '../auth/auth.service';
 import type {
   LoginCredentials,
@@ -42,7 +43,7 @@ export class ApiTokensService {
     const rows = await this.drizzle.db
       .select()
       .from(apiTokens)
-      .where(and(eq(apiTokens.userId, userId), isNull(apiTokens.revokedAt)))
+      .where(and(eq(apiTokens.userId, userId), activeApiToken()))
       .orderBy(desc(apiTokens.createdAt));
 
     return rows.map((r) => ApiTokenMapper.mapApiTokenToApiToken(r));

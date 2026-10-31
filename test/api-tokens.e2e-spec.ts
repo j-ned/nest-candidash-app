@@ -3,7 +3,10 @@ import { INestApplication } from '@nestjs/common';
 import { ZodValidationPipe } from 'nestjs-zod';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
+import { eq } from 'drizzle-orm';
 import { AppModule } from '../src/app.module';
+import { DrizzleService } from '../src/db/drizzle.service';
+import { apiTokens } from '../src/db/schema';
 import { createE2eUser, e2eCredentialsFromEnv } from './e2e-credentials';
 
 interface LoginDto {
@@ -108,6 +111,24 @@ describe('ApiTokens CRUD (e2e)', () => {
     const found = list.find((t) => t.id === createdToken.id);
     expect(found).toBeDefined();
     expect(found).not.toHaveProperty('token');
+  });
+
+  it('should expire a token left unused for more than 90 days', async () => {
+    const lookup = () =>
+      api(httpServer)
+        .get('/api/v1/jobtrack/lookup')
+        .query({ url: 'https://example.com/offre' })
+        .set('Authorization', `Bearer ${createdToken.token}`);
+    expect((await lookup()).status).toBe(200);
+
+    const ninetyOneDaysAgo = new Date(Date.now() - 91 * 24 * 60 * 60 * 1000);
+    await app
+      .get(DrizzleService)
+      .db.update(apiTokens)
+      .set({ derniereUtilisation: ninetyOneDaysAgo })
+      .where(eq(apiTokens.id, createdToken.id));
+
+    expect((await lookup()).status).toBe(401);
   });
 
   it('should revoke the token', async () => {
