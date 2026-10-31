@@ -36,3 +36,40 @@ describe('DocumentService.validateFile', () => {
     );
   });
 });
+
+describe('DocumentService.deleteFiles', () => {
+  function setup() {
+    const storage = { deleteObject: jest.fn().mockResolvedValue(undefined) };
+    const service = new DocumentService(
+      {} as DrizzleService,
+      storage as unknown as StorageService,
+      { getOrThrow: () => 'bucket' } as unknown as ConfigService,
+    );
+    return { service, storage };
+  }
+
+  it('deletes only the stored CV and cover letters', async () => {
+    const { service, storage } = setup();
+
+    await service.deleteFiles('u1', [
+      { id: 'j1', cvFileName: 'cv.pdf', lmFileName: null },
+      { id: 'j2', cvFileName: 'cv.pdf', lmFileName: 'lm.pdf' },
+    ]);
+
+    expect(storage.deleteObject.mock.calls).toEqual([
+      ['bucket', 'u1/j1/cv.pdf'],
+      ['bucket', 'u1/j2/cv.pdf'],
+      ['bucket', 'u1/j2/lm.pdf'],
+    ]);
+  });
+
+  it('never calls the storage when there is no file', async () => {
+    const { service, storage } = setup();
+
+    await service.deleteFiles('u1', [
+      { id: 'j1', cvFileName: null, lmFileName: null },
+    ]);
+
+    expect(storage.deleteObject).not.toHaveBeenCalled();
+  });
+});

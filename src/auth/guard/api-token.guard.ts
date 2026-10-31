@@ -5,10 +5,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { Request as ExpressRequest } from 'express';
 import { DrizzleService } from '../../db/drizzle.service';
 import { apiTokens } from '../../db/schema';
+import { activeApiToken } from '../../api-tokens/active-api-token';
 
 interface RequestWithUser extends ExpressRequest {
   user?: { sub: string };
@@ -30,13 +31,13 @@ export class ApiTokenGuard implements CanActivate {
     const [row] = await this.drizzle.db
       .select()
       .from(apiTokens)
-      .where(
-        and(eq(apiTokens.tokenHash, tokenHash), isNull(apiTokens.revokedAt)),
-      )
+      .where(and(eq(apiTokens.tokenHash, tokenHash), activeApiToken()))
       .limit(1);
 
     if (!row) {
-      throw new UnauthorizedException("Jeton d'API invalide ou révoqué");
+      throw new UnauthorizedException(
+        "Jeton d'API invalide, révoqué ou expiré",
+      );
     }
 
     await this.drizzle.db
